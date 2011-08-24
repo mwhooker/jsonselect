@@ -81,7 +81,7 @@ class Lexer(object):
             self.next()
             return ('*', 'T')
 
-        
+
         if self.peek.isalpha():
             b = ''
             while self.peek.isalnum():
@@ -97,7 +97,7 @@ class Lexer(object):
         if self.peek == '.':
             b = ''
             self.next()
-            if self.peek == '"':    
+            if self.peek == '"':
                 self.next()
                 while True:
                     b += self.peek
@@ -132,20 +132,145 @@ class Lexer(object):
 
     def _syntax_error(self, info):
         raise SyntaxError(info, self.input.getvalue(), self.line, self.column, self.peek)
-            
+
+
+class Interpreter(object):
+
+    def __init__(self, input):
+        self.input = input
+        self.idx = 0
+
+    @property
+    def lookahead(self):
+        try:
+            val = self.input(self.idx)
+        except IndexError:
+            return None
+        return val
+
+    def match(self, terminal):
+        if self.lookahead == terminal:
+            self.idx += 1
+        else:
+            raise SyntaxError(terminal, self.input, idx, 0)
 
 def select(selector, input):
     print "select '%s'" % selector
+
+    """
+    if not isinstance(input, dict):
+        raise Exception('expecting dict type')
+    """
+
+
     lexer = Lexer(selector)
+
     while True:
         try:
-            print lexer.scan()
+            lexeme, token_type = lexer.scan()
         except EOFException, e:
-            return
+            break
         except SyntaxError, e:
             print e
             return
 
+        print "<%s, %s>" % (token_type, lexeme)
+        if token_type == 'KEY':
+            input = select_key(lexeme, input)
+
+        if token_type == 'T':
+            input = select_type(lexeme, input)
+
+        if token_type == 'N':
+            input = select_declaration(lexeme, input)
+    return input
+
+def select_declaration(lexeme, input):
+    """
+            'root',
+            'nth-child',
+            'nth-last-child',
+            'first-child',
+            'last-child',
+            'only-child',
+            'empty',
+            'has',
+            'expr',
+            'val',
+            'contains'
+    """
+    if lexeme == 'root':
+        return input
+    if lexeme
+def select_type(lexeme, input):
+    """
+
+    >>> select_type('string', ['a', 1, 'b'])
+    ['a', 'b']
+    >>> select_type('number', {'a': 1, 'b': {'c': 2}})
+    [1, 2]
+    """
+
+    def _match(type_):
+        map = {
+            'string': str,
+            'number': int,
+            'object': dict,
+            'array': list,
+            'boolean': bool,
+            'null': type(None)
+        }
+        def _do(val):
+            if type_ == '*':
+                return True
+            return isinstance(val, map[type_])
+        return _do
+
+    found = []
+    match = _match(lexeme)
+
+    def _select(input):
+        if isinstance(input, list):
+            for elem in input:
+                if match(elem):
+                    found.append(elem)
+        if isinstance(input, dict):
+            for key in input:
+                if match(input[key]):
+                    found.append(input[key])
+                _select(input[key])
+
+    _select(input)
+
+    return found
+
+def select_key(lexeme, input):
+    """
+
+    >>> select_key('b', {'a': {'b': 1}})
+    [1]
+    >>> select_key('b',{'a': {'b': 1}, 'c': {'b': 2}})
+    [1, 2]
+    >>> select_key('b', {'a': {'b': {'c': 1}}})
+    [{'c': 1}]
+    >>> select_key('a', {'a': {'a': 1}})
+    [1, {'a': 1}]
+    """
+
+    found = []
+    def _search(target):
+        if isinstance(target, dict):
+            for key in target:
+                if isinstance(target[key], dict):
+                    _search(target[key])
+                if key == lexeme:
+                    found.append(target[key])
+        elif isinstance(target, list):
+            for elem in target:
+                _search(elem)
+
+    _search(input)
+    return found
 
 
 """

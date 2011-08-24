@@ -4,6 +4,7 @@ import argparse
 import glob
 import os
 import os.path
+import json
 from jsonselect import select
 
 
@@ -19,10 +20,15 @@ def get_ctests(test_path):
         output_file = "%s%soutput" % (root, os.extsep)
         output_path = os.path.join(test_path, output_file)
 
+        """
+        print input_path
+        print output_path
+        print selector_path
+        """
 
         if input_path not in inputs:
             with open(input_path) as f:
-                inputs[input_path] = f.read().strip()
+                inputs[input_path] = json.load(f)
 
         with open(selector_path) as selector_f:
             with open(output_path) as output_f:
@@ -44,15 +50,20 @@ if __name__ == '__main__':
 
     for level in ('level_%s' % level for level in tests):
         test_failures = []
+        total_tests = 0
         test_path = os.path.join('conformance_tests', level)
         print "Running tests in %s" % test_path
 
         for (selector, input, output) in get_ctests(test_path):
-            if select(selector, input) != output:
+            total_tests += 1
+            selection = select(selector, input)
+            print "res: %s" % selection
+            print "cmp: %s" % output
+            if selection != output:
                 test_failures.append(selector)
 
         if len(test_failures):
-            print "%s failed" % level
+            print "%s failed (%s/%s)" % (level, len(test_failures), total_tests)
             if args.verbose:
                 for failure in test_failures:
                     print '\t%s' % failure
