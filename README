@@ -1,0 +1,6 @@
+
+
+Tests
+
+run tests with 
+nosetests --with-doctest --doctest-tests --exe
