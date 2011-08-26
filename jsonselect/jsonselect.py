@@ -66,51 +66,55 @@ def lex(selector):
             raise Exception("leftover input: %s" % rest)
     return tokens
 
-def match(tokens, ttype):
-    if not peek(tokens, ttype):
-        raise Exception('match not successful')
-
-    t = tokens.pop(0)
-    return t[1]
-
-def peek(tokens, ttype):
-    if not tokens:
-        return False
-    if tokens[0][0] == ttype:
-        return tokens[0][1]
-    else:
-        return False
 
 
-def parse(tokens, obj):
+class Parser(object):
 
-    if peek(tokens, 'operator') == '*':
-        return obj
-    results = set([])
-    print tokens
+    def __init__(self, obj):
+        self.obj = obj
 
-    if peek(tokens, 'type'):
+    def parse(self, tokens):
+        if self._peek(tokens, 'operator') == '*':
+            return self.obj
+        results = set([])
         print tokens
-        type_ = match(tokens, 'type')
-        res = select_type(type_, obj)
-        results.update(set(res))
-        print 'type: ', res
 
-    if peek(tokens, 'identifier'):
-        print tokens
-        id_ = match(tokens, 'identifier')
-        res = select_key(id_, obj)
-        print 'res: ', res
-        results.intersection_update(set(res))
-        print 'id: ', results
+        if self._peek(tokens, 'type'):
+            print tokens
+            type_ = self._match(tokens, 'type')
+            res = select_type(type_, self.obj)
+            results.update(set(res))
+            print 'type: ', res
 
-    if peek(tokens, 'operator') == ',':
-        match(tokens, 'operator')
-        results.update(parse(tokens, obj))
-        print 'merged: ', results
+        if self._peek(tokens, 'identifier'):
+            print tokens
+            id_ = self._match(tokens, 'identifier')
+            res = select_key(id_, self.obj)
+            print 'res: ', res
+            results.intersection_update(set(res))
+            print 'id: ', results
 
+        if self._peek(tokens, 'operator') == ',':
+            self._match(tokens, 'operator')
+            results.update(self.parse(tokens))
+            print 'merged: ', results
 
-    return results
+        return results
+
+    def _match(self, tokens, ttype):
+        if not self._peek(tokens, ttype):
+            raise Exception('match not successful')
+
+        t = tokens.pop(0)
+        return t[1]
+
+    def _peek(self, tokens, ttype):
+        if not tokens:
+            return False
+        if tokens[0][0] == ttype:
+            return tokens[0][1]
+        else:
+            return False
 
 
 
@@ -120,7 +124,8 @@ def select(selector, obj):
     if isinstance(obj, dict):
         obj = make_hashable(obj)
     print 'after: ', obj
-    return parse(lex(selector), obj)
+    parser = Parser(obj)
+    return parser.parse(lex(selector))
 
 
 
