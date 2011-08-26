@@ -30,14 +30,16 @@ class Lexer(object):
             'null'
         )
 
-        self.node_keywords = (
+        self.pseudo_classes = (
             'root',
-            'nth-child',
-            'nth-last-child',
             'first-child',
             'last-child',
             'only-child',
-            'empty',
+            'empty'
+        )
+        self.pseudo_class_functions = (
+            'nth-child',
+            'nth-last-child',
             'has',
             'expr',
             'val',
@@ -121,8 +123,10 @@ class Lexer(object):
                 b += self.peek
                 self.next()
             self.rewind()
-            if b in self.node_keywords:
-                return (b, 'N')
+            if b in self.pseudo_classes:
+                return (b, 'P')
+            elif b in self.pseudo_class_functions:
+                return (b, 'PF')
             else:
                 self._syntax_error(b)
 
@@ -133,26 +137,6 @@ class Lexer(object):
     def _syntax_error(self, info):
         raise SyntaxError(info, self.input.getvalue(), self.line, self.column, self.peek)
 
-
-class Interpreter(object):
-
-    def __init__(self, input):
-        self.input = input
-        self.idx = 0
-
-    @property
-    def lookahead(self):
-        try:
-            val = self.input(self.idx)
-        except IndexError:
-            return None
-        return val
-
-    def match(self, terminal):
-        if self.lookahead == terminal:
-            self.idx += 1
-        else:
-            raise SyntaxError(terminal, self.input, idx, 0)
 
 def select(selector, input):
     print "select '%s'" % selector
@@ -183,25 +167,52 @@ def select(selector, input):
 
         if token_type == 'N':
             input = select_declaration(lexeme, input)
+
+        if token_type == 'NARGS':
+            pass
+
     return input
+
+def nchild(idx, input):
+    found = []
+
+    def _find(input):
+        if isinstance(input, dict):
+            for key in input:
+                _find(input[key])
+        if isinstance(input, list):
+            try:
+                found.append(input[idx])
+                _find(input[idx])
+            except IndexError:
+                pass
+    _find(input)
+    return found
 
 def select_declaration(lexeme, input):
     """
             'root',
-            'nth-child',
-            'nth-last-child',
             'first-child',
             'last-child',
             'only-child',
             'empty',
-            'has',
-            'expr',
-            'val',
-            'contains'
     """
     if lexeme == 'root':
         return input
-    if lexeme
+    if lexeme == 'first-child':
+        return nchild(0, input)
+    if lexeme == 'last-child':
+        return nchild(-1, input)
+    """
+    if lexeme == 'only-child':
+        return hasnchildren(1, input)
+    if lexeme == 'empty':
+        return hasnchildren(0, input)
+    """
+
+
+
+
 def select_type(lexeme, input):
     """
 
@@ -288,4 +299,24 @@ def lex(input):
     if word:
         yield word
 """
+
+class Interpreter(object):
+
+    def __init__(self, input):
+        self.input = input
+        self.idx = 0
+
+    @property
+    def lookahead(self):
+        try:
+            val = self.input(self.idx)
+        except IndexError:
+            return None
+        return val
+
+    def match(self, terminal):
+        if self.lookahead == terminal:
+            self.idx += 1
+        else:
+            raise SyntaxError(terminal, self.input, idx, 0)
 
