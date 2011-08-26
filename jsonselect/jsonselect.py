@@ -38,7 +38,7 @@ SCANNER = re.Scanner([
     (r"([~*,>\)\(])", S_OPER),
     (r"\s", S_EMPTY),
     (r"(string|boolean|null|array|object|number)", S_TYPE),
-    (r"""(?:(\.)?(\\"(?:[^\\\\"]|\\[^\\"])*\\"))""", S_IDENTIFIER),
+    (r"""(?:(\.)?(\"(?:[^"]|\\[^"])*\"))""", S_IDENTIFIER),
     (u"\.((?:[_a-zA-Z]|[^\0-\0177]|\\[^\s0-9a-fA-F])(?:[_a-zA-Z0-9\-]" \
      u"|[^\u0000-\u0177]|(?:\\[^\s0-9a-fA-F]))*)", S_IDENTIFIER),
     (r"(:(root|first-child|last-child|only-child))", S_PCLASS),
