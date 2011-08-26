@@ -57,8 +57,8 @@ if __name__ == '__main__':
         for (selector, input, output) in get_ctests(test_path):
             total_tests += 1
             selection = select(selector, input)
-            print "res: %s" % selection
-            print "cmp: %s" % output
+            #print "res: %s" % selection
+            #print "cmp: %s" % output
             if json.dumps(selection) != output:
                 test_failures.append(selector)
 
