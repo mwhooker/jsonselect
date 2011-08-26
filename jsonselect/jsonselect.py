@@ -30,23 +30,25 @@ S_OPER = lambda x, token: ('operator', token)
 S_EMPTY = lambda x, token:  ('empty', '')
 S_UNK = lambda x, token: ('unknown', token)
 S_INT = lambda x, token: ('int', int(token))
+S_FLOAT = lambda x, token: ('float', float(token))
 S_WORD = lambda x, token: ('word', token)
 S_BINOP = lambda x, token: ('binop', token)
 S_VALS = lambda x, token: ('val', token)
 
 SCANNER = re.Scanner([
-    (r"([~*,>\)\(])", S_OPER),
+    (r"[~*,>\)\(]", S_OPER),
     (r"\s", S_EMPTY),
-    (r"(string|boolean|null|array|object|number)", S_TYPE),
-    (r"""(?:(\.)?(\"(?:[^"]|\\[^"])*\"))""", S_IDENTIFIER),
-    (u"\.((?:[_a-zA-Z]|[^\0-\0177]|\\[^\s0-9a-fA-F])(?:[_a-zA-Z0-9\-]" \
-     u"|[^\u0000-\u0177]|(?:\\[^\s0-9a-fA-F]))*)", S_IDENTIFIER),
-    (r"(:(root|first-child|last-child|only-child))", S_PCLASS),
-    (r"(:(nth-child|nth-last-child|has|expr|val|contains))", S_PCLASS_FUNC),
+    (r"(-?\d+(\.\d*)([eE][+\-]?\d+)?)", S_FLOAT),
+    (r"\d+", S_INT),
+    (r"string|boolean|null|array|object|number", S_TYPE),
+    (r'\.?\"([^"\\]|\\[^"])*\"', S_IDENTIFIER),
+    (u"\.([_a-zA-Z]|[^\0-\0177]|\\[^\s0-9a-fA-F])(?:[_a-zA-Z0-9\-]" \
+     u"|[^\u0000-\u0177]|(?:\\[^\s0-9a-fA-F]))*", S_IDENTIFIER),
+    (r":(root|first-child|last-child|only-child)", S_PCLASS),
+    (r":(nth-child|nth-last-child|has|expr|val|contains)", S_PCLASS_FUNC),
     (r"(&&|\|\||[\$\^<>!\*]=|[=+\-*/%<>])", S_BINOP),
-    (r"(true|false|null)", S_VALS),
-    (r"(-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)", S_INT),
-    (r"(\w+)", S_WORD),
+    (r"true|false|null", S_VALS),
+    (r"\w+", S_WORD),
 ])
 
 
