@@ -20,12 +20,6 @@ def get_ctests(test_path):
         output_file = "%s%soutput" % (root, os.extsep)
         output_path = os.path.join(test_path, output_file)
 
-        """
-        print input_path
-        print output_path
-        print selector_path
-        """
-
         if input_path not in inputs:
             with open(input_path) as f:
                 inputs[input_path] = json.load(f)
@@ -36,6 +30,11 @@ def get_ctests(test_path):
                        inputs[input_path],
                        output_f.read().strip())
 
+
+def match(output, fixture):
+    #TODO normalize datas
+    formatted_selection = '\n'.join(['"%s"' % s for s in selection]) 
+    pass
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -58,10 +57,9 @@ if __name__ == '__main__':
             print '->[%s]' % selector
             total_tests += 1
             selection = select(selector, input)
-            formatted_selection = '\n'.join(['"%s"' % s for s in selection]) 
-            print "output: %s" % formatted_selection
+            print "output: %s" % selection
             print "fixture: %s" % output
-            if formatted_selection!= output:
+            if not match(selection, output):
                 test_failures.append(selector)
                 print "FAILURE"
             else:
