@@ -59,7 +59,7 @@ if __name__ == '__main__':
             selection = select(selector, input)
             print "res: %s" % selection
             print "cmp: %s" % output
-            if selection != output:
+            if json.dumps(selection) != output:
                 test_failures.append(selector)
 
         if len(test_failures):
