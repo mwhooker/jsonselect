@@ -1,29 +1,36 @@
 import re
+import numbers
+import collections
 
-"""
-from jsonselect.json
 
-/^(?:([\r\n\t\]+)|([~*,>\)\(])|(string|boolean|null|array|object|number)|(:(?:root|first-child|last-child|only-child))|(:(?:nth-child|nth-last-child|has|expr|val|contains))|(:\w+)|(?:(\.)?(\"(?:[^\\\"]|\\[^\"])*\"))|(\")|\.((?:[_a-zA-Z]|[^\0-\0177]|\\[^\r\n\f0-9a-fA-F])(?:[_a-zA-Z0-9\-]|[^\u0000-\u0177]|(?:\\[^\r\n\f0-9a-fA-F]))*))/ 
+class hashabledict(dict, collections.Mapping):
+    def __key(self):
+        return tuple((k,self[k]) for k in sorted(self))
+    def __hash__(self):
+        return hash(self.__key())
+    def __eq__(self, other):
+        return self.__key() == other.__key()
+    def __repr__(self):
+        return "hashable(%s)" % super(hashabledict, self).__repr__()
 
-        "^(?" +
-        # (1) whitespace
-        "([\r\n\t\ ]+)|" +
-        # (2) one-char ops
-        "([~*,>\)\(])|" +
-        # (4) pseudo classes
-        # (5) pseudo functions
-        # (6) bogusly named pseudo something or others
-        "(:\w+)|" +
-        # (7 & 8) identifiers and JSON strings
-        # (8) bogus JSON strings missing a trailing quote
-        "(\\")|" +
-        # (9) identifiers (unquoted)
-        ")"
-    );
-"""
+def make_hashable(obj):
+    if isinstance(obj, dict):
+        for key in obj:
+            obj[key] = make_hashable(obj[key])
+        return hashabledict(obj)
+    elif isinstance(obj, list):
+        for i, elem in enumerate(obj):
+            obj[i] = make_hashable(obj[i])
+        return frozenset(obj)
+    else:
+        return obj
+
+
+
 
 S_TYPE = lambda x, token: ('type', token)
-S_IDENTIFIER = lambda x, token: ('identifier', token)
+S_IDENTIFIER = lambda x, token: ('identifier', token[1:])
+S_QUOTED_IDENTIFIER = lambda x, token: S_IDENTIFIER(None, token.replace('"', ''))
 S_PCLASS = lambda x, token: ('pclass', token)
 S_PCLASS_FUNC = lambda x, token: ('pclass_func', token)
 S_OPER = lambda x, token: ('operator', token)
@@ -41,7 +48,7 @@ SCANNER = re.Scanner([
     (r"(-?\d+(\.\d*)([eE][+\-]?\d+)?)", S_FLOAT),
     (r"\d+", S_INT),
     (r"string|boolean|null|array|object|number", S_TYPE),
-    (r'\.?\"([^"\\]|\\[^"])*\"', S_IDENTIFIER),
+    (r'\.?\"([^"\\]|\\[^"])*\"', S_QUOTED_IDENTIFIER),
     (u"\.([_a-zA-Z]|[^\0-\0177]|\\[^\s0-9a-fA-F])(?:[_a-zA-Z0-9\-]" \
      u"|[^\u0000-\u0177]|(?:\\[^\s0-9a-fA-F]))*", S_IDENTIFIER),
     (r":(root|first-child|last-child|only-child)", S_PCLASS),
@@ -53,41 +60,78 @@ SCANNER = re.Scanner([
 
 
 def lex(selector):
-    rest = selector
-    while True:
-        tokens, rest = SCANNER.scan(rest)
+    tokens, rest = SCANNER.scan(selector)
+    if not len(tokens):
         if rest:
-            print rest
-        if not len(tokens):
-            break
-        yield tokens
+            raise Exception("leftover input: %s" % rest)
+    return tokens
+
+def match(tokens, ttype):
+    if not peek(tokens, ttype):
+        raise Exception('match not successful')
+
+    t = tokens.pop(0)
+    return t[1]
+
+def peek(tokens, ttype):
+    if not tokens:
+        return False
+    if tokens[0][0] == ttype:
+        return tokens[0][1]
+    else:
+        return False
+
+
+def parse(tokens, obj):
+
+    if peek(tokens, 'operator') == '*':
+        return obj
+    results = set([])
+    print tokens
+
+    if peek(tokens, 'type'):
+        print tokens
+        type_ = match(tokens, 'type')
+        res = select_type(type_, obj)
+        results.update(set(res))
+        print 'type: ', res
+
+    if peek(tokens, 'identifier'):
+        print tokens
+        id_ = match(tokens, 'identifier')
+        res = select_key(id_, obj)
+        print 'res: ', res
+        results.intersection_update(set(res))
+        print 'id: ', results
+
+    if peek(tokens, 'operator') == ',':
+        match(tokens, 'operator')
+        results.update(parse(tokens, obj))
+        print 'merged: ', results
+
+
+    return results
+
+
 
 def select(selector, obj):
     print selector
-    for token in lex(selector):
-        print 'TOKEN ', token
+    print obj
+    if isinstance(obj, dict):
+        obj = make_hashable(obj)
+    print 'after: ', obj
+    return parse(lex(selector), obj)
 
 
-
-class EOFException(Exception):
-    pass
-
-class SyntaxError(Exception):
-    def __init__(self, ext, input, line, column, peek):
-        msg = "Syntax error on line %s column %s while processing '%s'" % (
-            line, column, ext)
-        msg += "\n peek = %s" % peek
-        msg += "\n %s" % input
-        super(SyntaxError, self).__init__(msg)
 
 def nchild(idx, input):
     found = []
 
     def _find(input):
-        if isinstance(input, dict):
+        if isinstance(input, collections.Mapping):
             for key in input:
                 _find(input[key])
-        if isinstance(input, list):
+        if isinstance(input, collections.Set):
             try:
                 found.append(input[idx])
                 _find(input[idx])
@@ -96,7 +140,7 @@ def nchild(idx, input):
     _find(input)
     return found
 
-def select_type(lexeme, input):
+def select_type(ttype, input):
     """
 
     >>> select_type('string', ['a', 1, 'b'])
@@ -105,34 +149,31 @@ def select_type(lexeme, input):
     [1, 2]
     """
 
-    def _match(type_):
+    if not ttype:
+        return input
+
+    def match(val):
         map = {
-            'string': str,
-            'number': int,
-            'object': dict,
-            'array': list,
+            'string': basestring,
+            'number': numbers.Number,
+            'object': collections.Mapping,
+            'array': collections.Set,
             'boolean': bool,
             'null': type(None)
         }
-        def _do(val):
-            if type_ == '*':
-                return True
-            return isinstance(val, map[type_])
-        return _do
+        return isinstance(val, map[ttype])
 
     found = []
-    match = _match(lexeme)
 
     def _select(input):
-        if isinstance(input, list):
+        if isinstance(input, collections.Set):
             for elem in input:
-                if match(elem):
-                    found.append(elem)
-        if isinstance(input, dict):
+                _select(elem)
+        if isinstance(input, collections.Mapping):
             for key in input:
-                if match(input[key]):
-                    found.append(input[key])
                 _select(input[key])
+        if match(input):
+            found.append(input)
 
     _select(input)
 
@@ -151,17 +192,32 @@ def select_key(lexeme, input):
     [1, {'a': 1}]
     """
 
+    if not lexeme:
+        return input
+
     found = []
     def _search(target):
-        if isinstance(target, dict):
+        if isinstance(target, collections.Mapping):
             for key in target:
-                if isinstance(target[key], dict):
-                    _search(target[key])
+                _search(target[key])
                 if key == lexeme:
                     found.append(target[key])
-        elif isinstance(target, list):
+        elif isinstance(target, collections.Set):
             for elem in target:
                 _search(elem)
 
     _search(input)
     return found
+
+
+class EOFException(Exception):
+    pass
+
+class SyntaxError(Exception):
+    def __init__(self, ext, input, line, column, peek):
+        msg = "Syntax error on line %s column %s while processing '%s'" % (
+            line, column, ext)
+        msg += "\n peek = %s" % peek
+        msg += "\n %s" % input
+        super(SyntaxError, self).__init__(msg)
+

@@ -55,12 +55,17 @@ if __name__ == '__main__':
         print "Running tests in %s" % test_path
 
         for (selector, input, output) in get_ctests(test_path):
+            print '->[%s]' % selector
             total_tests += 1
             selection = select(selector, input)
-            #print "res: %s" % selection
-            #print "cmp: %s" % output
-            if json.dumps(selection) != output:
+            formatted_selection = '\n'.join(['"%s"' % s for s in selection]) 
+            print "output: %s" % formatted_selection
+            print "fixture: %s" % output
+            if formatted_selection!= output:
                 test_failures.append(selector)
+                print "FAILURE"
+            else:
+                print "OK!"
 
         if len(test_failures):
             print "%s failed (%s/%s)" % (level, len(test_failures), total_tests)
