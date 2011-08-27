@@ -72,18 +72,19 @@ class Parser(object):
 
     def __init__(self, obj):
         self.obj = obj
+        self.results = []
 
     def parse(self, tokens):
         if self._peek(tokens, 'operator') == '*':
             return self.obj
-        results = set([])
+
         print tokens
 
         if self._peek(tokens, 'type'):
             print tokens
             type_ = self._match(tokens, 'type')
             res = select_type(type_, self.obj)
-            results.update(set(res))
+            self._and(res)
             print 'type: ', res
 
         if self._peek(tokens, 'identifier'):
@@ -91,7 +92,7 @@ class Parser(object):
             id_ = self._match(tokens, 'identifier')
             res = select_key(id_, self.obj)
             print 'res: ', res
-            results.intersection_update(set(res))
+            self._and(res)
             print 'id: ', results
 
         if self._peek(tokens, 'operator') == ',':
@@ -100,6 +101,12 @@ class Parser(object):
             print 'merged: ', results
 
         return results
+
+    def _and(self, matches):
+        pass 
+
+    def _or(self, matches):
+        pass
 
     def _match(self, tokens, ttype):
         if not self._peek(tokens, ttype):
@@ -121,8 +128,8 @@ class Parser(object):
 def select(selector, obj):
     print selector
     print obj
-    if isinstance(obj, dict):
-        obj = make_hashable(obj)
+    #if isinstance(obj, dict):
+    #    obj = make_hashable(obj)
     print 'after: ', obj
     parser = Parser(obj)
     return parser.parse(lex(selector))
