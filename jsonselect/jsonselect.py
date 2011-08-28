@@ -74,11 +74,6 @@ class Parser(object):
 
         exprs = []
 
-        if self._peek(tokens, 'operator') == '*':
-            for node in object_iter(self.obj):
-                self.results.append(node.value)
-            return
-
         while True:
 
             if self._peek(tokens, 'operator') == ',':
@@ -120,6 +115,10 @@ class Parser(object):
         if self._peek(tokens, 'pclass'):
             pclass = self._match(tokens, 'pclass')
             return functools.partial(self.select_pclass, pclass)
+
+        if self._peek(tokens, 'operator') == '*':
+            self._match(tokens, 'operator')
+            return lambda x: True
 
         if self._peek(tokens, 'pclass_func'):
             pass
