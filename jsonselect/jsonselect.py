@@ -91,7 +91,7 @@ class Parser(object):
 
         for node in object_iter(self.obj):
             results = [expr(node) for expr in exprs]
-            if False not in results:
+            if all(results):
                 self.results.append(node.value)
 
 
@@ -156,6 +156,8 @@ class Parser(object):
             if not node.siblings:
                 return False
             return node.siblings == 1
+        elif pclass == 'root':
+            return len(node.parents) == 0
 
     @staticmethod
     def select_pclass_function(pclass, args, node):
