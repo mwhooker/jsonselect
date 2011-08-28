@@ -75,6 +75,9 @@ class Parser(object):
         self.results = []
 
     def parse(self, tokens):
+        pass
+
+    def _parse(self, tokens):
         if self._peek(tokens, 'operator') == '*':
             return self.obj
 
@@ -83,22 +86,21 @@ class Parser(object):
         if self._peek(tokens, 'type'):
             print tokens
             type_ = self._match(tokens, 'type')
-            res = select_type(type_, self.obj)
+            res = self.select_type(type_, self.obj)
             self._and(res)
             print 'type: ', res
 
         if self._peek(tokens, 'identifier'):
             print tokens
             id_ = self._match(tokens, 'identifier')
-            res = select_key(id_, self.obj)
+            res = self.select_key(id_, self.obj)
             print 'res: ', res
             self._and(res)
-            print 'id: ', results
 
         if self._peek(tokens, 'operator') == ',':
             self._match(tokens, 'operator')
-            results.update(self.parse(tokens))
-            print 'merged: ', results
+            res = self.parse(tokens)
+            self._or(res)
 
         return results
 
@@ -106,7 +108,7 @@ class Parser(object):
         pass 
 
     def _or(self, matches):
-        pass
+        self.results.extend(matches)
 
     def _match(self, tokens, ttype):
         if not self._peek(tokens, ttype):
@@ -124,6 +126,93 @@ class Parser(object):
             return False
 
 
+    @staticmethod
+    def nchild(idx, input):
+        found = []
+
+        def _find(input):
+            if isinstance(input, collections.Mapping):
+                for key in input:
+                    _find(input[key])
+            if isinstance(input, collections.Set):
+                try:
+                    found.append(input[idx])
+                    _find(input[idx])
+                except IndexError:
+                    pass
+        _find(input)
+        return found
+
+    @staticmethod
+    def select_type(ttype, input):
+        """
+
+        >>> select_type('string', ['a', 1, 'b'])
+        ['a', 'b']
+        >>> select_type('number', {'a': 1, 'b': {'c': 2}})
+        [1, 2]
+        """
+
+        if not ttype:
+            return input
+
+        def match(val):
+            map = {
+                'string': basestring,
+                'number': numbers.Number,
+                'object': collections.Mapping,
+                'array': collections.Set,
+                'boolean': bool,
+                'null': type(None)
+            }
+            return isinstance(val, map[ttype])
+
+        found = []
+
+        def _select(input):
+            if isinstance(input, collections.Set):
+                for elem in input:
+                    _select(elem)
+            if isinstance(input, collections.Mapping):
+                for key in input:
+                    _select(input[key])
+            if match(input):
+                found.append(input)
+
+        _select(input)
+
+        return found
+
+    @staticmethod
+    def select_key(lexeme, input):
+        """
+
+        >>> select_key('b', {'a': {'b': 1}})
+        [1]
+        >>> select_key('b',{'a': {'b': 1}, 'c': {'b': 2}})
+        [1, 2]
+        >>> select_key('b', {'a': {'b': {'c': 1}}})
+        [{'c': 1}]
+        >>> select_key('a', {'a': {'a': 1}})
+        [1, {'a': 1}]
+        """
+
+        if not lexeme:
+            return input
+
+        found = []
+        def _search(target):
+            if isinstance(target, collections.Mapping):
+                for key in target:
+                    _search(target[key])
+                    if key == lexeme:
+                        found.append(target[key])
+            elif isinstance(target, collections.Set):
+                for elem in target:
+                    _search(elem)
+
+        _search(input)
+        return found
 
 def select(selector, obj):
     print selector
@@ -134,92 +223,6 @@ def select(selector, obj):
     parser = Parser(obj)
     return parser.parse(lex(selector))
 
-
-
-def nchild(idx, input):
-    found = []
-
-    def _find(input):
-        if isinstance(input, collections.Mapping):
-            for key in input:
-                _find(input[key])
-        if isinstance(input, collections.Set):
-            try:
-                found.append(input[idx])
-                _find(input[idx])
-            except IndexError:
-                pass
-    _find(input)
-    return found
-
-def select_type(ttype, input):
-    """
-
-    >>> select_type('string', ['a', 1, 'b'])
-    ['a', 'b']
-    >>> select_type('number', {'a': 1, 'b': {'c': 2}})
-    [1, 2]
-    """
-
-    if not ttype:
-        return input
-
-    def match(val):
-        map = {
-            'string': basestring,
-            'number': numbers.Number,
-            'object': collections.Mapping,
-            'array': collections.Set,
-            'boolean': bool,
-            'null': type(None)
-        }
-        return isinstance(val, map[ttype])
-
-    found = []
-
-    def _select(input):
-        if isinstance(input, collections.Set):
-            for elem in input:
-                _select(elem)
-        if isinstance(input, collections.Mapping):
-            for key in input:
-                _select(input[key])
-        if match(input):
-            found.append(input)
-
-    _select(input)
-
-    return found
-
-def select_key(lexeme, input):
-    """
-
-    >>> select_key('b', {'a': {'b': 1}})
-    [1]
-    >>> select_key('b',{'a': {'b': 1}, 'c': {'b': 2}})
-    [1, 2]
-    >>> select_key('b', {'a': {'b': {'c': 1}}})
-    [{'c': 1}]
-    >>> select_key('a', {'a': {'a': 1}})
-    [1, {'a': 1}]
-    """
-
-    if not lexeme:
-        return input
-
-    found = []
-    def _search(target):
-        if isinstance(target, collections.Mapping):
-            for key in target:
-                _search(target[key])
-                if key == lexeme:
-                    found.append(target[key])
-        elif isinstance(target, collections.Set):
-            for elem in target:
-                _search(elem)
-
-    _search(input)
-    return found
 
 
 class EOFException(Exception):
