@@ -43,7 +43,7 @@ def lex(selector):
     return tokens
 
 # parents is a list of node names along the path from the root to current node
-Node = collections.namedtuple('Node', ['parents', 'value', 'sibling_idx',
+Node = collections.namedtuple('Node', ['value', 'parents', 'sibling_idx',
                                        'siblings'])
 
 def object_iter(obj, parents=[], siblings=None, sibling_idx=None):
@@ -52,17 +52,16 @@ def object_iter(obj, parents=[], siblings=None, sibling_idx=None):
     """
 
     if isinstance(obj, list):
-        siblings = len(obj)
+        _siblings = len(obj)
         for i, elem in enumerate(obj):
-            for node in object_iter(elem, parents, siblings, i):
+            for node in object_iter(elem, parents, _siblings, i):
                 yield node
     elif isinstance(obj, collections.Mapping):
         for key in obj:
             for node in object_iter(obj[key], parents + [key]):
                 yield node
-    else:
-        yield Node(parents=parents, value=obj, siblings=siblings,
-                   sibling_idx=sibling_idx)
+    yield Node(value=obj, parents=parents, siblings=siblings,
+               sibling_idx=sibling_idx)
 
 
 class Parser(object):
@@ -76,7 +75,9 @@ class Parser(object):
         exprs = []
 
         if self._peek(tokens, 'operator') == '*':
-            return True
+            for node in object_iter(self.obj):
+                self.results.append(node.value)
+            return
 
         while True:
 
@@ -190,7 +191,9 @@ class Parser(object):
 
         assert lexeme
 
-        return node.parents[-1] == lexeme
+        if len(node.parents):
+            return node.parents[-1] == lexeme
+        return False
 
 
 
