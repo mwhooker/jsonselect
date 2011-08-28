@@ -7,7 +7,7 @@ import functools
 S_TYPE = lambda x, token: ('type', token)
 S_IDENTIFIER = lambda x, token: ('identifier', token[1:])
 S_QUOTED_IDENTIFIER = lambda x, token: S_IDENTIFIER(None, token.replace('"', ''))
-S_PCLASS = lambda x, token: ('pclass', token)
+S_PCLASS = lambda x, token: ('pclass', token[1:])
 S_PCLASS_FUNC = lambda x, token: ('pclass_func', token)
 S_OPER = lambda x, token: ('operator', token)
 S_EMPTY = lambda x, token:  ('empty', '')
@@ -43,23 +43,26 @@ def lex(selector):
     return tokens
 
 # parents is a list of node names along the path from the root to current node
-Node = collections.namedtuple('Node', ['parents', 'value'])
+Node = collections.namedtuple('Node', ['parents', 'value', 'sibling_idx',
+                                       'siblings'])
 
-def object_iter(obj, parents=[]):
+def object_iter(obj, parents=[], siblings=None, sibling_idx=None):
     """
     return type: Node
     """
 
     if isinstance(obj, list):
-        for elem in obj:
-            for node in object_iter(elem, parents):
+        siblings = len(obj)
+        for i, elem in enumerate(obj):
+            for node in object_iter(elem, parents, siblings, i):
                 yield node
     elif isinstance(obj, collections.Mapping):
         for key in obj:
             for node in object_iter(obj[key], parents + [key]):
                 yield node
     else:
-        yield Node(parents=parents, value=obj)
+        yield Node(parents=parents, value=obj, siblings=siblings,
+                   sibling_idx=sibling_idx)
 
 
 class Parser(object):
@@ -94,7 +97,7 @@ class Parser(object):
             results = [expr(node) for expr in exprs]
             if False not in results:
                 self.results.append(node.value)
-                
+
 
     def parse(self, tokens):
         """
@@ -112,7 +115,14 @@ class Parser(object):
         if self._peek(tokens, 'identifier'):
             id_ = self._match(tokens, 'identifier')
             return functools.partial(self.select_key, id_)
-        
+
+        if self._peek(tokens, 'pclass'):
+            pclass = self._match(tokens, 'pclass')
+            return functools.partial(self.select_pclass, pclass)
+
+        if self._peek(tokens, 'pclass_func'):
+            pass
+
 
         return None
 
@@ -131,23 +141,26 @@ class Parser(object):
         else:
             return False
 
+    @staticmethod
+    def select_pclass(pclass, node):
+
+        if pclass == 'first-child':
+            if not node.siblings:
+                return False
+            return node.sibling_idx == 0
+        elif pclass == 'last-child':
+            if not node.siblings:
+                return False
+            return node.sibling_idx + 1 == node.siblings
+        elif pclass == 'only-child':
+            if not node.siblings:
+                return False
+            return node.siblings == 1
 
     @staticmethod
-    def nchild(idx, input):
-        found = []
+    def select_pclass_function(pclass, args, node):
+        pass
 
-        def _find(input):
-            if isinstance(input, collections.Mapping):
-                for key in input:
-                    _find(input[key])
-            if isinstance(input, collections.Set):
-                try:
-                    found.append(input[idx])
-                    _find(input[idx])
-                except IndexError:
-                    pass
-        _find(input)
-        return found
 
     @staticmethod
     def select_type(ttype, node):

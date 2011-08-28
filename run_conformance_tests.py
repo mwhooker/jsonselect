@@ -34,6 +34,7 @@ def get_ctests(test_path):
         output_file = "%s%soutput" % (root, os.extsep)
         output_path = os.path.join(test_path, output_file)
 
+        print input_path
         if input_path not in inputs:
             with open(input_path) as f:
                 inputs[input_path] = json.load(f)
