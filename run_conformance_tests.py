@@ -1,12 +1,26 @@
 #!/usr/bin/python
 
+import re
 import argparse
 import glob
 import os
 import os.path
 import json
+import collections
 from jsonselect import select
 
+
+def read_output(output_f):
+    output = output_f.read().strip()
+    try:
+        output = json.loads(output)
+    except ValueError, e:
+        output = output.replace('"','').split()
+
+    if not isinstance(output, collections.Iterable) or \
+       isinstance(output, basestring):
+        return [output]
+    return output
 
 def get_ctests(test_path):
     inputs = {}
@@ -28,13 +42,16 @@ def get_ctests(test_path):
             with open(output_path) as output_f:
                 yield (selector_f.read().strip(),
                        inputs[input_path],
-                       output_f.read().strip())
+                       read_output(output_f))
 
 
 def match(output, fixture):
-    #TODO normalize datas
-    formatted_selection = '\n'.join(['"%s"' % s for s in selection]) 
-    pass
+    c10n_output = sorted(map(str, output))
+    c10n_fixture = sorted(map(str, fixture))
+    print "output: %s" % c10n_output
+    print "fixture: %s" % c10n_fixture
+    return c10n_output == c10n_fixture
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -57,8 +74,6 @@ if __name__ == '__main__':
             print '->[%s]' % selector
             total_tests += 1
             selection = select(selector, input)
-            print "output: %s" % selection
-            print "fixture: %s" % output
             if not match(selection, output):
                 test_failures.append(selector)
                 print "FAILURE"
