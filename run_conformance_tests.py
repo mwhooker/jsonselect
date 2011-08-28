@@ -10,18 +10,6 @@ import collections
 from jsonselect import select
 
 
-def read_output(output_f):
-    output = output_f.read().strip()
-    try:
-        output = json.loads(output)
-    except ValueError, e:
-        output = output.replace('"','').split()
-
-    if not isinstance(output, collections.Iterable) or \
-       isinstance(output, basestring):
-        return [output]
-    return output
-
 def get_ctests(test_path):
     inputs = {}
     for selector_path in glob.iglob(os.path.join(test_path, '*.selector')):
@@ -46,11 +34,34 @@ def get_ctests(test_path):
                        read_output(output_f))
 
 
+def read_output(output_f):
+    output = output_f.read().strip()
+    try:
+        output = json.loads(output)
+    except ValueError, e:
+        output = output.replace('"','').split()
+        for i, line in enumerate(output):
+            try:
+                output[i] = int(line)
+            except ValueError:
+                pass
+
+    if not isinstance(output, collections.Iterable) or \
+       isinstance(output, basestring):
+        return [output]
+    return output
+
+
 def match(output, fixture):
-    c10n_output = sorted(map(str, output))
-    c10n_fixture = sorted(map(str, fixture))
-    print "output: %s" % c10n_output
-    print "fixture: %s" % c10n_fixture
+    def _c10n(obj):
+        if not isinstance(obj, collections.Mapping):
+            obj = sorted(obj)
+        return obj
+
+    c10n_output = _c10n(output)
+    c10n_fixture = _c10n(fixture)
+    print "output: ", c10n_output
+    print "fixture: ", c10n_fixture
     return c10n_output == c10n_fixture
 
 
