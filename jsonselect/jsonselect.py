@@ -81,7 +81,7 @@ class Parser(object):
                 self.select(tokens)
                 break
 
-            expr = self.parse(tokens)
+            expr = self._parse(tokens)
             if not expr:
                 break
             exprs.append(expr)
@@ -95,7 +95,7 @@ class Parser(object):
                 self.results.append(node.value)
 
 
-    def parse(self, tokens):
+    def _parse(self, tokens):
         """
         Read from tokens until expression is found.
         Return function which takes a node as an argument and returns the
