@@ -68,7 +68,17 @@ class Parser(object):
 
     def __init__(self, obj):
         self.obj = obj
-        self.results = []
+        self._results = []
+
+    @property
+    def results(self):
+        # single results should be returned as a primitive
+        if len(self._results) == 1:
+            return self._results[0]
+        return self._results
+
+    def add_found_node(self, node):
+        self._results.append(node.value)
 
     def select(self, tokens):
 
@@ -92,7 +102,7 @@ class Parser(object):
         for node in object_iter(self.obj):
             results = [expr(node) for expr in exprs]
             if all(results):
-                self.results.append(node.value)
+                self.add_found_node(node)
 
 
     def _parse(self, tokens):
@@ -180,7 +190,7 @@ class Parser(object):
             'string': basestring,
             'number': numbers.Number,
             'object': collections.Mapping,
-            'array': collections.Set,
+            'array': list,
             'boolean': bool,
             'null': type(None)
         }
@@ -189,18 +199,13 @@ class Parser(object):
 
     @staticmethod
     def select_key(lexeme, node):
-
         assert lexeme
-
         if len(node.parents):
             return node.parents[-1] == lexeme
         return False
 
 
-
 def select(selector, obj):
-    #if isinstance(obj, dict):
-    #    obj = make_hashable(obj)
     parser = Parser(obj)
     parser.select(lex(selector))
     return parser.results

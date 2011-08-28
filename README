@@ -1,6 +1,4 @@
-
-
 Tests
 
-run tests with 
-nosetests --with-doctest --doctest-tests --exe
+Run specific level conformance tests with
+nosetests -m '.*_level_1' ./tests/test_conformance.py

@@ -45,22 +45,17 @@ def read_output(output_f):
                 output[i] = int(line)
             except ValueError:
                 pass
-
-    if not isinstance(output, collections.Iterable) or \
-       isinstance(output, basestring):
-        return [output]
     return output
-
 
 def create_test(lhs, rhs):
     def _test(self):
-        msg = "%s != %s" % (lhs, rhs)
-        msg += "\n%s" % _test._selector
+        msg = "%s" % _test._selector
+        msg += "\n%s\n!=\n%s" % (lhs, rhs)
         self.assertEqual(lhs, rhs, msg=msg) 
     return _test
 
 def normalize(obj):
-    if not isinstance(obj, collections.Mapping):
+    if isinstance(obj, list):
         obj = sorted(obj)
     return obj
 
