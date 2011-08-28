@@ -1,31 +1,7 @@
 import re
 import numbers
 import collections
-
-
-class hashabledict(dict, collections.Mapping):
-    def __key(self):
-        return tuple((k,self[k]) for k in sorted(self))
-    def __hash__(self):
-        return hash(self.__key())
-    def __eq__(self, other):
-        return self.__key() == other.__key()
-    def __repr__(self):
-        return "hashable(%s)" % super(hashabledict, self).__repr__()
-
-def make_hashable(obj):
-    if isinstance(obj, dict):
-        for key in obj:
-            obj[key] = make_hashable(obj[key])
-        return hashabledict(obj)
-    elif isinstance(obj, list):
-        for i, elem in enumerate(obj):
-            obj[i] = make_hashable(obj[i])
-        return frozenset(obj)
-    else:
-        return obj
-
-
+import functools
 
 
 S_TYPE = lambda x, token: ('type', token)
@@ -66,6 +42,24 @@ def lex(selector):
             raise Exception("leftover input: %s" % rest)
     return tokens
 
+# parents is a list of node names along the path from the root to current node
+Node = collections.namedtuple('Node', ['parents', 'value'])
+
+def object_iter(obj, parents=[]):
+    """
+    return type: Node
+    """
+
+    if isinstance(obj, list):
+        for elem in obj:
+            for node in object_iter(elem, parents):
+                yield node
+    elif isinstance(obj, collections.Mapping):
+        for key in obj:
+            for node in object_iter(obj[key], parents + [key]):
+                yield node
+    else:
+        yield Node(parents=parents, value=obj)
 
 
 class Parser(object):
@@ -74,41 +68,53 @@ class Parser(object):
         self.obj = obj
         self.results = []
 
-    def parse(self, tokens):
-        pass
+    def select(self, tokens):
 
-    def _parse(self, tokens):
+        exprs = []
+
         if self._peek(tokens, 'operator') == '*':
-            return self.obj
+            return True
 
-        print tokens
+        while True:
+
+            if self._peek(tokens, 'operator') == ',':
+                self._match(tokens, 'operator')
+                self.select(tokens)
+                break
+
+            expr = self.parse(tokens)
+            if not expr:
+                break
+            exprs.append(expr)
+
+        if tokens:
+            print "leftover tokens: ", tokens
+
+        for node in object_iter(self.obj):
+            results = [expr(node) for expr in exprs]
+            if False not in results:
+                self.results.append(node.value)
+                
+
+    def parse(self, tokens):
+        """
+        Read from tokens until expression is found.
+        Return function which takes a node as an argument and returns the
+        result of the expression applied to the node.
+        Modifies token stream.
+        """
+
 
         if self._peek(tokens, 'type'):
-            print tokens
             type_ = self._match(tokens, 'type')
-            res = self.select_type(type_, self.obj)
-            self._and(res)
-            print 'type: ', res
+            return functools.partial(self.select_type, type_)
 
         if self._peek(tokens, 'identifier'):
-            print tokens
             id_ = self._match(tokens, 'identifier')
-            res = self.select_key(id_, self.obj)
-            print 'res: ', res
-            self._and(res)
+            return functools.partial(self.select_key, id_)
+        
 
-        if self._peek(tokens, 'operator') == ',':
-            self._match(tokens, 'operator')
-            res = self.parse(tokens)
-            self._or(res)
-
-        return results
-
-    def _and(self, matches):
-        pass 
-
-    def _or(self, matches):
-        self.results.extend(matches)
+        return None
 
     def _match(self, tokens, ttype):
         if not self._peek(tokens, ttype):
@@ -144,84 +150,43 @@ class Parser(object):
         return found
 
     @staticmethod
-    def select_type(ttype, input):
+    def select_type(ttype, node):
         """
 
-        >>> select_type('string', ['a', 1, 'b'])
-        ['a', 'b']
-        >>> select_type('number', {'a': 1, 'b': {'c': 2}})
-        [1, 2]
+        >>> select_type('string', 'a')
+        True
+        >>> select_type('number', 1)
+        True
         """
 
-        if not ttype:
-            return input
+        assert ttype
 
-        def match(val):
-            map = {
-                'string': basestring,
-                'number': numbers.Number,
-                'object': collections.Mapping,
-                'array': collections.Set,
-                'boolean': bool,
-                'null': type(None)
-            }
-            return isinstance(val, map[ttype])
+        map = {
+            'string': basestring,
+            'number': numbers.Number,
+            'object': collections.Mapping,
+            'array': collections.Set,
+            'boolean': bool,
+            'null': type(None)
+        }
+        return isinstance(node.value, map[ttype])
 
-        found = []
-
-        def _select(input):
-            if isinstance(input, collections.Set):
-                for elem in input:
-                    _select(elem)
-            if isinstance(input, collections.Mapping):
-                for key in input:
-                    _select(input[key])
-            if match(input):
-                found.append(input)
-
-        _select(input)
-
-        return found
 
     @staticmethod
-    def select_key(lexeme, input):
-        """
+    def select_key(lexeme, node):
 
-        >>> select_key('b', {'a': {'b': 1}})
-        [1]
-        >>> select_key('b',{'a': {'b': 1}, 'c': {'b': 2}})
-        [1, 2]
-        >>> select_key('b', {'a': {'b': {'c': 1}}})
-        [{'c': 1}]
-        >>> select_key('a', {'a': {'a': 1}})
-        [1, {'a': 1}]
-        """
+        assert lexeme
 
-        if not lexeme:
-            return input
+        return node.parents[-1] == lexeme
 
-        found = []
-        def _search(target):
-            if isinstance(target, collections.Mapping):
-                for key in target:
-                    _search(target[key])
-                    if key == lexeme:
-                        found.append(target[key])
-            elif isinstance(target, collections.Set):
-                for elem in target:
-                    _search(elem)
 
-        _search(input)
-        return found
 
 def select(selector, obj):
-    print selector
-    print obj
     #if isinstance(obj, dict):
     #    obj = make_hashable(obj)
-    print 'after: ', obj
     parser = Parser(obj)
-    return parser.parse(lex(selector))
+    parser.select(lex(selector))
+    return parser.results
 
 
 
