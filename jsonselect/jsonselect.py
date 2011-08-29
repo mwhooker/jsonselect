@@ -48,7 +48,7 @@ Node = collections.namedtuple('Node', ['value', 'parents', 'sibling_idx',
 
 def object_iter(obj, parents=[], siblings=None, sibling_idx=None):
     """
-    return type: Node
+    Yields each node of object graph in postorder
     """
 
     if isinstance(obj, list):

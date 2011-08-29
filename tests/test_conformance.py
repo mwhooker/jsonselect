@@ -47,11 +47,17 @@ def read_output(output_f):
                 pass
     return output
 
-def create_test(lhs, rhs):
+def create_test(selector, input, output):
     def _test(self):
-        msg = "%s" % _test._selector
-        msg += "\n%s\n!=\n%s" % (lhs, rhs)
-        self.assertEqual(lhs, rhs, msg=msg) 
+        msg = "%s" % selector
+        msg += "\n%s\n!=\n%s" % (input, output)
+        selection = select(selector, input)
+
+        self.assertEqual(
+            normalize(selection),
+            normalize(output),
+            msg=msg
+        )
     return _test
 
 def normalize(obj):
@@ -64,14 +70,7 @@ for level in ('level_%s' % level for level in [1, 2, 3]):
     test_path = os.path.join('conformance_tests', level)
     print "Running tests in %s" % test_path
 
-    for i, (selector, input, output) in enumerate(get_ctests(test_path)):
-        print '->[%s]' % selector
-        selection = select(selector, input)
-
-        new_test = create_test(
-            normalize(selection),
-            normalize(output)
-        )
+    for i, inputs in enumerate(get_ctests(test_path)):
+        new_test = create_test(*inputs)
         new_test.__name__ = 'test_%s_%s' % (i, level)
-        new_test._selector = selector
         setattr(TestConformance, new_test.__name__, new_test)
