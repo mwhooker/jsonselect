@@ -109,8 +109,6 @@ class Parser(object):
 
         for node in object_iter(self.obj):
             results = [expr(node) for expr in exprs]
-            print node
-            print results
             if all(results):
                 self.add_found_node(node)
 
@@ -149,7 +147,7 @@ class Parser(object):
 
     def _parse_pclass_func(self, lexeme, tokens):
         """
-        Parse args and parse them to select_pclass_function.
+        Parse args and pass them to select_pclass_function.
         """
         if self._peek(tokens, 'operator') == '(':
             self._match(tokens, 'operator')
@@ -163,25 +161,27 @@ class Parser(object):
             else:
                 raise Exception('syntax error')
 
-            return functools.partial(self.select_pclass_function, lexeme, args)
+            if self._peek(args, 'word') == 'odd':
+                self._match(args, 'word')
+                cmp = lambda node: node.sibling_idx % 2 == 1
+            elif self._peek(args, 'word') == 'even':
+                cmp = lambda node: node.sibling_idx % 2 == 0
+            elif self._peek(args, 'int'):
+                idx = self._match(args, 'int')
+                cmp = lambda node: node.sibling_idx == idx
+            else:
+                raise Exception('syntax error')
+
+            return functools.partial(self.select_pclass_function, lexeme, cmp)
         else:
             raise Exception('syntax error')
 
-    def select_pclass_function(self, pclass, args, node):
-        args = list(args)
+    @staticmethod
+    def select_pclass_function(pclass, cmp, node):
         if pclass == 'nth-child':
             if not node.siblings:
                 return False
-            if self._peek(args, 'word') == 'odd':
-                self._match(args, 'word')
-                return node.sibling_idx % 2 == 1
-            elif self._peek(args, 'word') == 'even':
-                return node.sibling_idx % 2 == 0
-            elif self._peek(args, 'int'):
-                idx = self._match(args, 'int')
-                return node.sibling_idx == idx
-            else:
-                raise Exception('syntax error')
+            return cmp(node)
         elif pclass == 'nth-last-child':
             return False
         else:
