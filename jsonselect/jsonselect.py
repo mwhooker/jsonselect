@@ -99,7 +99,7 @@ class Parser(object):
                 continue
             """
 
-            expr = self._parse(tokens)
+            expr = self._expr_production(tokens)
             if not expr:
                 break
             exprs.append(expr)
@@ -114,8 +114,7 @@ class Parser(object):
             if all(results):
                 self.add_found_node(node)
 
-
-    def _parse(self, tokens):
+    def _expr_production(self, tokens):
         """
         Read from tokens until expression is found.
         Return function which takes a node as an argument and returns the
@@ -142,12 +141,12 @@ class Parser(object):
 
         if self._peek(tokens, 'pclass_func'):
             pclass_func = self._match(tokens, 'pclass_func')
-            return self._parse_pclass_func(pclass_func, tokens)
+            return self._pclass_func_production(pclass_func, tokens)
 
 
         return None
 
-    def _parse_pclass_func(self, lexeme, tokens):
+    def _pclass_func_production(self, lexeme, tokens):
         """
         Parse args and pass them to select_pclass_function.
         """
