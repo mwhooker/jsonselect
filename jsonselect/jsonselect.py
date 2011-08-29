@@ -82,21 +82,52 @@ class Parser(object):
     def add_found_node(self, node):
         self._results.append(node.value)
 
+
+    def _rename_1(self, expr_stack, node):
+        """
+        Compares node against expr_stack.
+        return True | False
+        """
+
+        result = []
+        results = [(all([expr(node) for expr in exprs]), terminal)
+                   for exprs, terminal in expr_stack]
+
+        def _eval(head, tail, last_passed=False):
+            passed, terminal = head
+            if terminal == ',':
+                return passed or _eval(tail[0], tail[1:], passed)
+            if terminal == 'done':
+                return passed
+
+        return _eval(results[0], results[1:])
+
+
     def select(self, tokens):
 
+        print tokens
+        expr_stack = self._parse(tokens)
+
+        print expr_stack
+        for node in object_iter(self.obj):
+            if self._rename_1(expr_stack, node):
+                self.add_found_node(node)
+
+
+    def _parse(self, tokens):
+        stack = []
         exprs = []
 
         while True:
 
             if self._peek(tokens, 'operator') == ',':
                 self._match(tokens, 'operator')
-                self.select(tokens)
-                break
+                stack.append((exprs, ','))
+                exprs = []
             
             """
             if self._peek(tokens, 'empty'):
                 self._match(tokens, 'empty')
-                continue
             """
 
             expr = self._expr_production(tokens)
@@ -104,15 +135,12 @@ class Parser(object):
                 break
             exprs.append(expr)
 
+        stack.append((exprs, 'done'))
+
         if tokens:
             print "leftover tokens: ", tokens
 
-        for node in object_iter(self.obj):
-            results = [expr(node) for expr in exprs]
-            print node
-            print results
-            if all(results):
-                self.add_found_node(node)
+        return stack
 
     def _expr_production(self, tokens):
         """
@@ -268,7 +296,6 @@ class Parser(object):
 def select(selector, obj):
     parser = Parser(obj)
     parser.select(lex(selector))
-    print parser.results
     return parser.results
 
 
