@@ -161,26 +161,25 @@ class Parser(object):
             else:
                 raise Exception('syntax error')
 
-            if self._peek(args, 'word') == 'odd':
-                self._match(args, 'word')
-                cmp = lambda node: node.sibling_idx % 2 == 1
-            elif self._peek(args, 'word') == 'even':
-                cmp = lambda node: node.sibling_idx % 2 == 0
-            elif self._peek(args, 'int'):
-                idx = self._match(args, 'int')
-                cmp = lambda node: node.sibling_idx == idx
-            else:
-                raise Exception('syntax error')
-
-            return functools.partial(self.select_pclass_function, lexeme, cmp)
+            return functools.partial(self.select_pclass_function, lexeme, args)
         else:
             raise Exception('syntax error')
 
-    @staticmethod
-    def select_pclass_function(pclass, cmp, node):
+    def select_pclass_function(self, pclass, args, node):
+        args = list(args)
         if pclass == 'nth-child':
             if not node.siblings:
                 return False
+            if self._peek(args, 'word') == 'odd':
+                self._match(args, 'word')
+                return node.sibling_idx % 2 == 1
+            elif self._peek(args, 'word') == 'even':
+                return node.sibling_idx % 2 == 0
+            elif self._peek(args, 'int'):
+                idx = self._match(args, 'int')
+                return node.sibling_idx == idx
+            else:
+                raise Exception('syntax error')
             return cmp(node)
         elif pclass == 'nth-last-child':
             return False
