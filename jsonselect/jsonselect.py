@@ -8,9 +8,9 @@ S_TYPE = lambda x, token: ('type', token)
 S_IDENTIFIER = lambda x, token: ('identifier', token[1:])
 S_QUOTED_IDENTIFIER = lambda x, token: S_IDENTIFIER(None, token.replace('"', ''))
 S_PCLASS = lambda x, token: ('pclass', token[1:])
-S_PCLASS_FUNC = lambda x, token: ('pclass_func', token)
+S_PCLASS_FUNC = lambda x, token: ('pclass_func', token[1:])
 S_OPER = lambda x, token: ('operator', token)
-S_EMPTY = lambda x, token:  ('empty', '')
+S_EMPTY = lambda x, token:  ('empty', True)
 S_UNK = lambda x, token: ('unknown', token)
 S_INT = lambda x, token: ('int', int(token))
 S_FLOAT = lambda x, token: ('float', float(token))
@@ -43,10 +43,11 @@ def lex(selector):
     return tokens
 
 # parents is a list of node names along the path from the root to current node
+# sibling_idx is 1 indexed
 Node = collections.namedtuple('Node', ['value', 'parents', 'sibling_idx',
                                        'siblings'])
 
-def object_iter(obj, parents=[], siblings=None, sibling_idx=None):
+def object_iter(obj, parents=[], sibling_idx=None, siblings=None):
     """
     Yields each node of object graph in postorder
     """
@@ -54,7 +55,7 @@ def object_iter(obj, parents=[], siblings=None, sibling_idx=None):
     if isinstance(obj, list):
         _siblings = len(obj)
         for i, elem in enumerate(obj):
-            for node in object_iter(elem, parents, _siblings, i):
+            for node in object_iter(elem, parents, i+1, _siblings):
                 yield node
     elif isinstance(obj, collections.Mapping):
         for key in obj:
@@ -62,6 +63,7 @@ def object_iter(obj, parents=[], siblings=None, sibling_idx=None):
                 yield node
     yield Node(value=obj, parents=parents, siblings=siblings,
                sibling_idx=sibling_idx)
+
 
 
 class Parser(object):
@@ -90,6 +92,12 @@ class Parser(object):
                 self._match(tokens, 'operator')
                 self.select(tokens)
                 break
+            
+            """
+            if self._peek(tokens, 'empty'):
+                self._match(tokens, 'empty')
+                continue
+            """
 
             expr = self._parse(tokens)
             if not expr:
@@ -101,6 +109,8 @@ class Parser(object):
 
         for node in object_iter(self.obj):
             results = [expr(node) for expr in exprs]
+            print node
+            print results
             if all(results):
                 self.add_found_node(node)
 
@@ -132,13 +142,15 @@ class Parser(object):
 
         if self._peek(tokens, 'pclass_func'):
             pclass_func = self._match(tokens, 'pclass_func')
-            self._parse_pclass_func(pclass_func, tokens)
+            return self._parse_pclass_func(pclass_func, tokens)
 
 
         return None
 
     def _parse_pclass_func(self, lexeme, tokens):
-        print 'PPCLASS_FUNC: ', tokens
+        """
+        Parse args and parse them to select_pclass_function.
+        """
         if self._peek(tokens, 'operator') == '(':
             self._match(tokens, 'operator')
             args = []
@@ -151,11 +163,29 @@ class Parser(object):
             else:
                 raise Exception('syntax error')
 
-            print "ARGS: %s" % args
+            return functools.partial(self.select_pclass_function, lexeme, args)
+        else:
+            raise Exception('syntax error')
 
-    @staticmethod
-    def select_pclass_function(pclass, args, node):
-        pass
+    def select_pclass_function(self, pclass, args, node):
+        args = list(args)
+        if pclass == 'nth-child':
+            if not node.siblings:
+                return False
+            if self._peek(args, 'word') == 'odd':
+                self._match(args, 'word')
+                return node.sibling_idx % 2 == 1
+            elif self._peek(args, 'word') == 'even':
+                return node.sibling_idx % 2 == 0
+            elif self._peek(args, 'int'):
+                idx = self._match(args, 'int')
+                return node.sibling_idx == idx
+            else:
+                raise Exception('syntax error')
+        elif pclass == 'nth-last-child':
+            return False
+        else:
+            raise Exception('syntax error')
 
     @staticmethod
     def select_pclass(pclass, node):
@@ -163,11 +193,11 @@ class Parser(object):
         if pclass == 'first-child':
             if not node.siblings:
                 return False
-            return node.sibling_idx == 0
+            return node.sibling_idx == 1
         elif pclass == 'last-child':
             if not node.siblings:
                 return False
-            return node.sibling_idx + 1 == node.siblings
+            return node.sibling_idx == node.siblings
         elif pclass == 'only-child':
             if not node.siblings:
                 return False
@@ -228,6 +258,7 @@ def select(selector, obj):
     return parser.results
 
 
+"""
 class SyntaxError(Exception):
     def __init__(self, ext, input, line, column, peek):
         msg = "Syntax error on line %s column %s while processing '%s'" % (
@@ -235,4 +266,4 @@ class SyntaxError(Exception):
         msg += "\n peek = %s" % peek
         msg += "\n %s" % input
         super(SyntaxError, self).__init__(msg)
-
+"""

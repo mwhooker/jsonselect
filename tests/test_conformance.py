@@ -22,7 +22,6 @@ def get_ctests(test_path):
         output_file = "%s%soutput" % (root, os.extsep)
         output_path = os.path.join(test_path, output_file)
 
-        print input_path
         if input_path not in inputs:
             with open(input_path) as f:
                 inputs[input_path] = json.load(f)
@@ -68,7 +67,6 @@ def normalize(obj):
 
 for level in ('level_%s' % level for level in [1, 2, 3]):
     test_path = os.path.join('conformance_tests', level)
-    print "Running tests in %s" % test_path
 
     for i, inputs in enumerate(get_ctests(test_path)):
         new_test = create_test(*inputs)
