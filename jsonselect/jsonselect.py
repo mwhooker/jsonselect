@@ -131,25 +131,31 @@ class Parser(object):
             return lambda x: True
 
         if self._peek(tokens, 'pclass_func'):
-            pass
+            pclass_func = self._match(tokens, 'pclass_func')
+            self._parse_pclass_func(pclass_func, tokens)
 
 
         return None
 
-    def _match(self, tokens, ttype):
-        if not self._peek(tokens, ttype):
-            raise Exception('match not successful')
+    def _parse_pclass_func(self, lexeme, tokens):
+        print 'PPCLASS_FUNC: ', tokens
+        if self._peek(tokens, 'operator') == '(':
+            self._match(tokens, 'operator')
+            args = []
 
-        t = tokens.pop(0)
-        return t[1]
+            while tokens:
+                if self._peek(tokens, 'operator') == ')':
+                    self._match(tokens, 'operator')
+                    break
+                args.append(tokens.pop(0))
+            else:
+                raise Exception('syntax error')
 
-    def _peek(self, tokens, ttype):
-        if not tokens:
-            return False
-        if tokens[0][0] == ttype:
-            return tokens[0][1]
-        else:
-            return False
+            print "ARGS: %s" % args
+
+    @staticmethod
+    def select_pclass_function(pclass, args, node):
+        pass
 
     @staticmethod
     def select_pclass(pclass, node):
@@ -168,10 +174,6 @@ class Parser(object):
             return node.siblings == 1
         elif pclass == 'root':
             return len(node.parents) == 0
-
-    @staticmethod
-    def select_pclass_function(pclass, args, node):
-        pass
 
 
     @staticmethod
@@ -205,15 +207,26 @@ class Parser(object):
         return False
 
 
+    def _match(self, tokens, ttype):
+        if not self._peek(tokens, ttype):
+            raise Exception('match not successful')
+
+        t = tokens.pop(0)
+        return t[1]
+
+    def _peek(self, tokens, ttype):
+        if not tokens:
+            return False
+        if tokens[0][0] == ttype:
+            return tokens[0][1]
+        else:
+            return False
+
 def select(selector, obj):
     parser = Parser(obj)
     parser.select(lex(selector))
     return parser.results
 
-
-
-class EOFException(Exception):
-    pass
 
 class SyntaxError(Exception):
     def __init__(self, ext, input, line, column, peek):
