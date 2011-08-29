@@ -48,9 +48,10 @@ def read_output(output_f):
 
 def create_test(selector, input, output):
     def _test(self):
-        msg = "%s" % selector
-        msg += "\n%s\n!=\n%s" % (input, output)
         selection = select(selector, input)
+
+        msg = "%s" % selector
+        msg += "\n%s\n!=\n%s" % (selection, output)
 
         self.assertEqual(
             normalize(selection),
