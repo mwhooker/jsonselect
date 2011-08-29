@@ -109,6 +109,8 @@ class Parser(object):
 
         for node in object_iter(self.obj):
             results = [expr(node) for expr in exprs]
+            print node
+            print results
             if all(results):
                 self.add_found_node(node)
 
@@ -166,6 +168,8 @@ class Parser(object):
             raise Exception('syntax error')
 
     def select_pclass_function(self, pclass, args, node):
+        # TODO: DRY this up
+        # in arg parsing, should probably use eval
         args = list(args)
         if pclass == 'nth-child':
             if not node.siblings:
@@ -180,9 +184,20 @@ class Parser(object):
                 return node.sibling_idx == idx
             else:
                 raise Exception('syntax error')
-            return cmp(node)
         elif pclass == 'nth-last-child':
-            return False
+            if not node.siblings:
+                return False
+            reverse_idx = node.siblings - (node.sibling_idx - 1)
+            if self._peek(args, 'word') == 'odd':
+                self._match(args, 'word')
+                return reverse_idx % 2 == 1
+            elif self._peek(args, 'word') == 'even':
+                return reverse_idx % 2 == 0
+            elif self._peek(args, 'int'):
+                idx = self._match(args, 'int')
+                return reverse_idx == idx
+            else:
+                raise Exception('syntax error')
         else:
             raise Exception('syntax error')
 
@@ -254,6 +269,7 @@ class Parser(object):
 def select(selector, obj):
     parser = Parser(obj)
     parser.select(lex(selector))
+    print parser.results
     return parser.results
 
 
