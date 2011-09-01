@@ -1,3 +1,24 @@
+"""
+*                   Any node                                                                                    1
+T                   A node of type T, where T is one string, number, object, array, boolean, or null            1
+T.key               A node of type T which is the child of an object and is the value its parents key property  1
+T."complex key"     Same as previous, but with property name specified as a JSON string                         1
+T:root              A node of type T which is the root of the JSON document                                     1
+T:nth-child(n)      A node of type T which is the nth child of an array parent                                  1
+T:nth-last-child(n) A node of type T which is the nth child of an array parent counting from the end            2
+T:first-child       A node of type T which is the first child of an array parent                                1
+T:last-child        A node of type T which is the last child of an array parent                                 2
+T:only-child        A node of type T which is the only child of an array parent                                 2
+T:empty             A node of type T which is an array or object with no child                                  2
+T U                 A node of type U with an ancestor of type T                                                 1
+T > U               A node of type U with a parent of type T                                                    1
+T ~ U               A node of type U with a sibling of type T                                                   2
+S1, S2              Any node which matches either selector S1 or S2                                             1
+T:has(S)            A node of type T which has a child node satisfying the selector S                           3
+T:expr(E)           A node of type T with a value that satisfies the expression E                               3
+T:val(V)            A node of type T with a value that is equal to V                                            3
+T:contains(S)       A node of type T with a string value contains the substring S                               3
+"""
 import re
 import numbers
 import collections
