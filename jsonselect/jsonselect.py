@@ -88,28 +88,29 @@ def lex(selector):
             raise Exception("leftover input: %s" % rest)
     return tokens
 
-# parents is a list of node names along the path from the root to current node
 # sibling_idx is 1 indexed
-Node = collections.namedtuple('Node', ['value', 'parents', 'sibling_idx',
-                                       'siblings'])
+# parents is a list of nodes from current node to root.
+Node = collections.namedtuple('Node', ['value', 'parent', 'parent_key',
+                                       'sibling_idx', 'siblings'])
 
-def object_iter(obj, parents=[], sibling_idx=None, siblings=None):
+def object_iter(obj, parent=None, parent_key=None, sibling_idx=None, siblings=None):
     """
     Yields each node of object graph in postorder
     """
 
+    obj_node = Node(value=obj, parent=parent, parent_key=parent_key,
+                siblings=siblings, sibling_idx=sibling_idx)
+
     if isinstance(obj, list):
         _siblings = len(obj)
         for i, elem in enumerate(obj):
-            for node in object_iter(elem, parents, i+1, _siblings):
+            for node in object_iter(elem, obj_node, None, i+1, _siblings):
                 yield node
     elif isinstance(obj, collections.Mapping):
         for key in obj:
-            for node in object_iter(obj[key], parents + [key]):
+            for node in object_iter(obj[key], obj_node, key):
                 yield node
-    yield Node(value=obj, parents=parents, siblings=siblings,
-               sibling_idx=sibling_idx)
-
+    yield obj_node
 
 
 class Parser(object):
@@ -125,6 +126,7 @@ class Parser(object):
         return results
 
     def parse(self, tokens):
+        print self.obj
 
         if self._peek(tokens, 'operator') == '*':
             self._match(tokens, 'operator')
@@ -139,6 +141,7 @@ class Parser(object):
     
     def selector_production(self, tokens):
 
+        print tokens
         validators = []
         # productions should add their own nodes to the found list
         if self._peek(tokens, 'type'):
@@ -157,7 +160,9 @@ class Parser(object):
             pclass_func = self._match(tokens, 'pclass_func')
             validators.append(self.pclass_func_production(pclass_func, tokens))
 
+        print validators
         results = self._eval(validators, self.obj)
+        print results
 
         if self._peek(tokens, 'operator'):
             operator = self._match(tokens, 'operator')
@@ -165,13 +170,13 @@ class Parser(object):
             if operator == ',':
                 results.extend(rvals)
             elif operator == '>':
-                results.extend(self.parents(results, rvals))
+                results = self.parents(results, rvals)
             elif operator == '~':
-                results.extend(self.siblings(results, rvals))
+                results = self.siblings(results, rvals)
         elif self._peek(tokens, 'empty'):
             self._match(tokens, 'empty')
             rvals = self.selector_production(tokens)
-            results.extend(self.ancestors(results, rvals))
+            results = self.ancestors(results, rvals)
 
         return results
 
@@ -179,9 +184,19 @@ class Parser(object):
         pass
 
     def ancestors(self, lhs, rhs):
-        pass
+        """Return nodes from rhs which have ancestors in lhs."""
 
-    def parents(self, lhs, rhs):
+        def _search(node):
+            if node in lhs:
+                return True
+            if not node.parent:
+                return False
+            return _search(node.parent)
+
+        return [node for node in rhs if _search(node)]
+
+
+    def siblings(self, lhs, rhs):
         pass
 
     def type_production(self, type_):
@@ -202,9 +217,9 @@ class Parser(object):
         assert key
 
         def validate(node):
-            if len(node.parents):
-                return node.parents[-1] == key
-            return False
+            if not node.parent_key:
+                return False
+            return node.parent_key == key
         return validate
 
 
@@ -218,7 +233,7 @@ class Parser(object):
         elif pclass == 'only-child':
             return lambda node: node.siblings == 1
         elif pclass == 'root':
-            return lambda node: len(node.parents) == 0
+            return lambda node: not node.parent
         else:
             raise Exception("unrecognized pclass %s" % pclass)
 
