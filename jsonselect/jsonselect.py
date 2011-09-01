@@ -1,3 +1,24 @@
+"""
+*                   Any node                                                                                    1
+T                   A node of type T, where T is one string, number, object, array, boolean, or null            1
+T.key               A node of type T which is the child of an object and is the value its parents key property  1
+T."complex key"     Same as previous, but with property name specified as a JSON string                         1
+T:root              A node of type T which is the root of the JSON document                                     1
+T:nth-child(n)      A node of type T which is the nth child of an array parent                                  1
+T:nth-last-child(n) A node of type T which is the nth child of an array parent counting from the end            2
+T:first-child       A node of type T which is the first child of an array parent                                1
+T:last-child        A node of type T which is the last child of an array parent                                 2
+T:only-child        A node of type T which is the only child of an array parent                                 2
+T:empty             A node of type T which is an array or object with no child                                  2
+T U                 A node of type U with an ancestor of type T                                                 1
+T > U               A node of type U with a parent of type T                                                    1
+T ~ U               A node of type U with a sibling of type T                                                   2
+S1, S2              Any node which matches either selector S1 or S2                                             1
+T:has(S)            A node of type T which has a child node satisfying the selector S                           3
+T:expr(E)           A node of type T with a value that satisfies the expression E                               3
+T:val(V)            A node of type T with a value that is equal to V                                            3
+T:contains(S)       A node of type T with a string value contains the substring S                               3
+"""
 import re
 import numbers
 import collections
@@ -71,6 +92,7 @@ class Parser(object):
     def __init__(self, obj):
         self.obj = obj
         self._results = []
+        self._validators = []
 
     @property
     def results(self):
@@ -79,185 +101,55 @@ class Parser(object):
             return self._results[0]
         return self._results
 
-    def add_found_node(self, node):
-        self._results.append(node.value)
+    def add_validator(self, pred):
+        """Adds all nodes in obj which match `pred` to found list."""
 
+        self._validators.append(pred)
 
-    def _rename_1(self, expr_stack, node):
-        """
-        Compares node against expr_stack.
-        return True | False
-        """
+    def _eval(self, validators, obj):
+        results = []
+        for node in object_iter(obj):
+            if all([validate(node) for validate in validators]):
+                results.append(node.value)
+        return results
 
-        result = []
-        results = [(all([expr(node) for expr in exprs]), terminal)
-                   for exprs, terminal in expr_stack]
-
-        def _eval(head, tail, last_passed=False):
-            passed, terminal = head
-            if terminal == ',':
-                return passed or _eval(tail[0], tail[1:], passed)
-            if terminal == 'done':
-                return passed
-
-        return _eval(results[0], results[1:])
-
-
-    def select(self, tokens):
-
-        print tokens
-        expr_stack = self._parse(tokens)
-
-        print expr_stack
-        for node in object_iter(self.obj):
-            if self._rename_1(expr_stack, node):
-                self.add_found_node(node)
-
-
-    def _parse(self, tokens):
-        stack = []
-        exprs = []
-
-        while True:
-
-            if self._peek(tokens, 'operator') == ',':
-                self._match(tokens, 'operator')
-                stack.append((exprs, ','))
-                exprs = []
-            
-            """
-            if self._peek(tokens, 'empty'):
-                self._match(tokens, 'empty')
-            """
-
-            expr = self._expr_production(tokens)
-            if not expr:
-                break
-            exprs.append(expr)
-
-        stack.append((exprs, 'done'))
-
-        if tokens:
-            print "leftover tokens: ", tokens
-
-        return stack
-
-    def _expr_production(self, tokens):
-        """
-        Read from tokens until expression is found.
-        Return function which takes a node as an argument and returns the
-        result of the expression applied to the node.
-        Modifies token stream.
-        """
-
-
-        if self._peek(tokens, 'type'):
-            type_ = self._match(tokens, 'type')
-            return functools.partial(self.select_type, type_)
-
-        if self._peek(tokens, 'identifier'):
-            id_ = self._match(tokens, 'identifier')
-            return functools.partial(self.select_key, id_)
-
-        if self._peek(tokens, 'pclass'):
-            pclass = self._match(tokens, 'pclass')
-            return functools.partial(self.select_pclass, pclass)
+    def parse(self, tokens):
 
         if self._peek(tokens, 'operator') == '*':
             self._match(tokens, 'operator')
-            return lambda x: True
+            self.add_validator(lambda x: True)
+        else:
+            self.selector_production(tokens)
 
+        self._results = self._eval(self._validators, self.obj)
+    
+    def selector_production(self, tokens):
+
+        # productions should add their own nodes to the found list
+        if self._peek(tokens, 'type'):
+            type_ = self._match(tokens, 'type')
+            self.type_production(type_)
+
+        if self._peek(tokens, 'identifier'):
+            key = self._match(tokens, 'identifier')
+            self.key_production(key)
+
+        if self._peek(tokens, 'pclass'):
+            pclass = self._match(tokens, 'pclass')
+            self.pclass_production(pclass)
+
+        if self._peek(tokens, 'operator'):
+            print "operator"
+
+        """
         if self._peek(tokens, 'pclass_func'):
             pclass_func = self._match(tokens, 'pclass_func')
-            return self._pclass_func_production(pclass_func, tokens)
-
-
-        return None
-
-    def _pclass_func_production(self, lexeme, tokens):
-        """
-        Parse args and pass them to select_pclass_function.
-        """
-        if self._peek(tokens, 'operator') == '(':
-            self._match(tokens, 'operator')
-            args = []
-
-            while tokens:
-                if self._peek(tokens, 'operator') == ')':
-                    self._match(tokens, 'operator')
-                    break
-                args.append(tokens.pop(0))
-            else:
-                raise Exception('syntax error')
-
-            return functools.partial(self.select_pclass_function, lexeme, args)
-        else:
-            raise Exception('syntax error')
-
-    def select_pclass_function(self, pclass, args, node):
-        # TODO: DRY this up
-        # in arg parsing, should probably use eval
-        args = list(args)
-        if pclass == 'nth-child':
-            if not node.siblings:
-                return False
-            if self._peek(args, 'word') == 'odd':
-                self._match(args, 'word')
-                return node.sibling_idx % 2 == 1
-            elif self._peek(args, 'word') == 'even':
-                return node.sibling_idx % 2 == 0
-            elif self._peek(args, 'int'):
-                idx = self._match(args, 'int')
-                return node.sibling_idx == idx
-            else:
-                raise Exception('syntax error')
-        elif pclass == 'nth-last-child':
-            if not node.siblings:
-                return False
-            reverse_idx = node.siblings - (node.sibling_idx - 1)
-            if self._peek(args, 'word') == 'odd':
-                self._match(args, 'word')
-                return reverse_idx % 2 == 1
-            elif self._peek(args, 'word') == 'even':
-                return reverse_idx % 2 == 0
-            elif self._peek(args, 'int'):
-                idx = self._match(args, 'int')
-                return reverse_idx == idx
-            else:
-                raise Exception('syntax error')
-        else:
-            raise Exception('syntax error')
-
-    @staticmethod
-    def select_pclass(pclass, node):
-
-        if pclass == 'first-child':
-            if not node.siblings:
-                return False
-            return node.sibling_idx == 1
-        elif pclass == 'last-child':
-            if not node.siblings:
-                return False
-            return node.sibling_idx == node.siblings
-        elif pclass == 'only-child':
-            if not node.siblings:
-                return False
-            return node.siblings == 1
-        elif pclass == 'root':
-            return len(node.parents) == 0
-
-
-    @staticmethod
-    def select_type(ttype, node):
+            return self.pclass_func_production(pclass_func, tokens)
         """
 
-        >>> select_type('string', 'a')
-        True
-        >>> select_type('number', 1)
-        True
-        """
 
-        assert ttype
+    def type_production(self, type_):
+        assert type_
 
         map = {
             'string': basestring,
@@ -267,44 +159,62 @@ class Parser(object):
             'boolean': bool,
             'null': type(None)
         }
-        return isinstance(node.value, map[ttype])
+        self.add_validator(lambda node: isinstance(node.value, map[type_]))
 
 
-    @staticmethod
-    def select_key(lexeme, node):
-        assert lexeme
-        if len(node.parents):
-            return node.parents[-1] == lexeme
-        return False
+    def key_production(self, key):
+        assert key
+
+        def validate(node):
+            if len(node.parents):
+                return node.parents[-1] == key
+            return False
+        self.add_validator(validate)
 
 
-    def _match(self, tokens, ttype):
-        if not self._peek(tokens, ttype):
+    def pclass_production(self, pclass):
+
+        if pclass == 'first-child':
+            self.add_validator(lambda node: node.sibling_idx == 1)
+        elif pclass == 'last-child':
+            self.add_validator(lambda node: node.siblings and 
+                                    node.sibling_idx == node.siblings)
+        elif pclass == 'only-child':
+            self.add_validator(lambda node: node.siblings == 1)
+        elif pclass == 'root':
+            self.add_validator(lambda node: len(node.parents) == 0)
+        else:
+            raise Exception("unrecognized pclass %s" % pclass)
+
+
+    def _match(self, tokens, type_):
+        if not self._peek(tokens, type_):
             raise Exception('match not successful')
 
         t = tokens.pop(0)
         return t[1]
 
-    def _peek(self, tokens, ttype):
+
+    def _peek(self, tokens, type_):
         if not tokens:
             return False
-        if tokens[0][0] == ttype:
+        if tokens[0][0] == type_:
             return tokens[0][1]
         else:
             return False
 
+
 def select(selector, obj):
     parser = Parser(obj)
-    parser.select(lex(selector))
+    parser.parse(lex(selector))
     return parser.results
 
 
 """
-class SyntaxError(Exception):
-    def __init__(self, ext, input, line, column, peek):
-        msg = "Syntax error on line %s column %s while processing '%s'" % (
-            line, column, ext)
-        msg += "\n peek = %s" % peek
-        msg += "\n %s" % input
-        super(SyntaxError, self).__init__(msg)
+To merge:
+    _expr_production
+    pclass_func_production
+    _parse
+    eval
+    _rename_1
 """
