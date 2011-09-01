@@ -56,13 +56,14 @@ S_QUOTED_IDENTIFIER = lambda x, token: S_IDENTIFIER(None, token.replace('"', '')
 S_PCLASS = lambda x, token: ('pclass', token[1:])
 S_PCLASS_FUNC = lambda x, token: ('pclass_func', token[1:])
 S_OPER = lambda x, token: ('operator', token)
-S_EMPTY = lambda x, token:  ('empty', True)
+S_EMPTY = lambda x, token:  ('empty', ' ')
 S_UNK = lambda x, token: ('unknown', token)
 S_INT = lambda x, token: ('int', int(token))
 S_FLOAT = lambda x, token: ('float', float(token))
 S_WORD = lambda x, token: ('word', token)
 S_BINOP = lambda x, token: ('binop', token)
 S_VALS = lambda x, token: ('val', token)
+S_VAR = lambda x, token: ('var', token)
 
 SCANNER = re.Scanner([
     (r"[~*,>\)\(]", S_OPER),
@@ -77,9 +78,12 @@ SCANNER = re.Scanner([
     (r":(nth-child|nth-last-child|has|expr|val|contains)", S_PCLASS_FUNC),
     (r"(&&|\|\||[\$\^<>!\*]=|[=+\-*/%<>])", S_BINOP),
     (r"true|false|null", S_VALS),
+    (r"n", S_VAR),
     (r"\w+", S_WORD),
 ])
 
+
+class SelectorSyntaxError(Exception): pass
 
 def lex(selector):
     tokens, rest = SCANNER.scan(selector)
@@ -138,7 +142,7 @@ class Parser(object):
             if len(results) == 1:
                 return results[0]
             return results
-    
+
     def selector_production(self, tokens):
 
         print tokens
@@ -162,7 +166,6 @@ class Parser(object):
 
         print validators
         results = self._eval(validators, self.obj)
-        print results
 
         if self._peek(tokens, 'operator'):
             operator = self._match(tokens, 'operator')
@@ -238,27 +241,49 @@ class Parser(object):
             raise Exception("unrecognized pclass %s" % pclass)
 
 
+    def parse_pclass_func_args(self, tokens):
+        """Make sure that tokens in a well-formed argument list."""
+        if self._peek(tokens, 'operator') == '(':
+            self._match(tokens, 'operator')
+        else:
+            raise SelectorSyntaxError()
+
+        while tokens:
+            if self._peek(tokens, 'operator') == '(':
+                self.parse_pclass_func_args(tokens)
+            elif self._peek(tokens, 'operator') == ')':
+                break
+#TODO: operators should maybe be parsed seperately. Wouldn't expect to see operator tokens here.
+            elif self._peek(tokens, ['int', 'binop', 'float', 'var', 'empty', 'operator']):
+                self._match_any(tokens)
+                continue
+            else:
+                raise SelectorSyntaxError()
+        else:
+            raise SelectorSyntaxError()
+
+        if self._peek(tokens, 'operator') == ')':
+            self._match(tokens, 'operator')
+        else:
+            raise SelectorSyntaxError()
+
+
+    def eval_args(self, args, n=None):
+        expr_str = ''.join([str(arg[1]) for arg in args])
+
+        return eval(expr_str, None, {'n': n})
+
     def pclass_func_production(self, lexeme, tokens):
         """
         Parse args and pass them to pclass_function_validator.
         """
-        if self._peek(tokens, 'operator') == '(':
-            self._match(tokens, 'operator')
-            args = []
 
-            while tokens:
-                if self._peek(tokens, 'operator') == ')':
-                    self._match(tokens, 'operator')
-                    break
-                args.append(tokens.pop(0))
-            else:
-                raise Exception('syntax error')
-
-            return functools.partial(self.pclass_function_validator, lexeme, args)
-        else:
-            raise Exception('syntax error')
+        self.parse_pclass_func_args(list(tokens))
+        return functools.partial(self.pclass_function_validator, lexeme, args)
 
     def pclass_function_validator(self, pclass, args, node):
+        # x = self.eval_args(args, n)
+
         # TODO: DRY this up
         # in arg parsing, should probably use eval
         args = list(args)
@@ -274,7 +299,7 @@ class Parser(object):
                 idx = self._match(args, 'int')
                 return node.sibling_idx == idx
             else:
-                raise Exception('syntax error')
+                raise SelectorSyntaxError()
         elif pclass == 'nth-last-child':
             if not node.siblings:
                 return False
@@ -288,9 +313,9 @@ class Parser(object):
                 idx = self._match(args, 'int')
                 return reverse_idx == idx
             else:
-                raise Exception('syntax error')
+                raise SelectorSyntaxError()
         else:
-            raise Exception('syntax error')
+            raise SelectorSyntaxError()
 
     def _match(self, tokens, type_):
         if not self._peek(tokens, type_):
@@ -299,15 +324,20 @@ class Parser(object):
         t = tokens.pop(0)
         return t[1]
 
+    def _match_any(self, tokens):
+        t = tokens.pop(0)
+        return t[1]
 
     def _peek(self, tokens, type_):
         if not tokens:
             return False
-        if tokens[0][0] == type_:
+
+        if isinstance(type_, list) and tokens[0][0] in type_:
+            return tokens[0][1]
+        elif tokens[0][0] == type_:
             return tokens[0][1]
         else:
             return False
-
 
 def select(selector, obj):
     parser = Parser(obj)
