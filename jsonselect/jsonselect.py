@@ -18,6 +18,31 @@ T:has(S)            A node of type T which has a child node satisfying the selec
 T:expr(E)           A node of type T with a value that satisfies the expression E                               3
 T:val(V)            A node of type T with a value that is equal to V                                            3
 T:contains(S)       A node of type T with a string value contains the substring S                               3
+
+
+IDEA:
+
+    each production returns a list of matching nodes. Do set arithmetic at higher levels?
+    This might work because we'll be working with Nodes and not primitives
+
+    i.e.
+    expr_prod:
+        and(results, type_prod)
+        and(results, id_prod)
+        and(results, pclass_prod)
+        if next == ','
+            or(results, expr_prod)
+        if next == ' '
+            ancestor(results, expr_prod)
+        if next == '~':
+            sibling(results, expr_prod)
+        if next == '>'
+            parent(results, expr_prod)
+        return results
+
+    might be hard to do set arithmetic because node.value could be an unhashable primitive.
+    perhaps going back to adding validators.
+    or a hybrid approach where and/or adds validators
 """
 import re
 import numbers
@@ -91,20 +116,6 @@ class Parser(object):
 
     def __init__(self, obj):
         self.obj = obj
-        self._results = []
-        self._validators = []
-
-    @property
-    def results(self):
-        # single results should be returned as a primitive
-        if len(self._results) == 1:
-            return self._results[0]
-        return self._results
-
-    def add_validator(self, pred):
-        """Adds all nodes in obj which match `pred` to found list."""
-
-        self._validators.append(pred)
 
     def _eval(self, validators, obj):
         results = []
@@ -117,29 +128,47 @@ class Parser(object):
 
         if self._peek(tokens, 'operator') == '*':
             self._match(tokens, 'operator')
-            self.add_validator(lambda x: True)
+            return [node.value for node in object_iter(self.obj)]
         else:
-            self.selector_production(tokens)
-
-        self._results = self._eval(self._validators, self.obj)
+            results = self.selector_production(tokens)
+            # single results should be returned as a primitive
+            if len(results) == 1:
+                return results[0]
+            return results
     
     def selector_production(self, tokens):
 
+        validators = []
         # productions should add their own nodes to the found list
         if self._peek(tokens, 'type'):
             type_ = self._match(tokens, 'type')
-            self.type_production(type_)
+            validators.append(self.type_production(type_))
 
         if self._peek(tokens, 'identifier'):
             key = self._match(tokens, 'identifier')
-            self.key_production(key)
+            validators.append(self.key_production(key))
 
         if self._peek(tokens, 'pclass'):
             pclass = self._match(tokens, 'pclass')
-            self.pclass_production(pclass)
+            validators.append(self.pclass_production(pclass))
+
+        results = self._eval(validators, self.obj)
 
         if self._peek(tokens, 'operator'):
-            print "operator"
+            operator = self._match(tokens, 'operator')
+            rvals = self.selector_production(tokens)
+            if operator == ',':
+                results.extend(rvals)
+            elif operator == '>':
+                results.extend(self.parents(results, rvals))
+            elif operator == '~':
+                results.extend(self.siblings(results, rvals))
+        elif self._peek(tokens, 'empty'):
+            self._match(tokens, 'empty')
+            rvals = self.selector_production(tokens)
+            results.extend(self.ancestors(results, rvals))
+
+        return results
 
         """
         if self._peek(tokens, 'pclass_func'):
@@ -147,6 +176,14 @@ class Parser(object):
             return self.pclass_func_production(pclass_func, tokens)
         """
 
+    def parents(self, lhs, rhs):
+        pass
+
+    def ancestors(self, lhs, rhs):
+        pass
+
+    def parents(self, lhs, rhs):
+        pass
 
     def type_production(self, type_):
         assert type_
@@ -159,7 +196,7 @@ class Parser(object):
             'boolean': bool,
             'null': type(None)
         }
-        self.add_validator(lambda node: isinstance(node.value, map[type_]))
+        return lambda node: isinstance(node.value, map[type_])
 
 
     def key_production(self, key):
@@ -169,20 +206,20 @@ class Parser(object):
             if len(node.parents):
                 return node.parents[-1] == key
             return False
-        self.add_validator(validate)
+        return validate
 
 
     def pclass_production(self, pclass):
 
         if pclass == 'first-child':
-            self.add_validator(lambda node: node.sibling_idx == 1)
+            return lambda node: node.sibling_idx == 1
         elif pclass == 'last-child':
-            self.add_validator(lambda node: node.siblings and 
-                                    node.sibling_idx == node.siblings)
+            return lambda node: \
+                node.siblings and node.sibling_idx == node.siblings
         elif pclass == 'only-child':
-            self.add_validator(lambda node: node.siblings == 1)
+            return lambda node: node.siblings == 1
         elif pclass == 'root':
-            self.add_validator(lambda node: len(node.parents) == 0)
+            return lambda node: len(node.parents) == 0
         else:
             raise Exception("unrecognized pclass %s" % pclass)
 
@@ -206,8 +243,7 @@ class Parser(object):
 
 def select(selector, obj):
     parser = Parser(obj)
-    parser.parse(lex(selector))
-    return parser.results
+    return parser.parse(lex(selector))
 
 
 """
