@@ -121,7 +121,7 @@ class Parser(object):
         results = []
         for node in object_iter(obj):
             if all([validate(node) for validate in validators]):
-                results.append(node.value)
+                results.append(node)
         return results
 
     def parse(self, tokens):
@@ -131,6 +131,7 @@ class Parser(object):
             return [node.value for node in object_iter(self.obj)]
         else:
             results = self.selector_production(tokens)
+            results = [node.value for node in results]
             # single results should be returned as a primitive
             if len(results) == 1:
                 return results[0]
@@ -152,6 +153,10 @@ class Parser(object):
             pclass = self._match(tokens, 'pclass')
             validators.append(self.pclass_production(pclass))
 
+        if self._peek(tokens, 'pclass_func'):
+            pclass_func = self._match(tokens, 'pclass_func')
+            validators.append(self.pclass_func_production(pclass_func, tokens))
+
         results = self._eval(validators, self.obj)
 
         if self._peek(tokens, 'operator'):
@@ -169,12 +174,6 @@ class Parser(object):
             results.extend(self.ancestors(results, rvals))
 
         return results
-
-        """
-        if self._peek(tokens, 'pclass_func'):
-            pclass_func = self._match(tokens, 'pclass_func')
-            return self.pclass_func_production(pclass_func, tokens)
-        """
 
     def parents(self, lhs, rhs):
         pass
@@ -224,6 +223,60 @@ class Parser(object):
             raise Exception("unrecognized pclass %s" % pclass)
 
 
+    def pclass_func_production(self, lexeme, tokens):
+        """
+        Parse args and pass them to pclass_function_validator.
+        """
+        if self._peek(tokens, 'operator') == '(':
+            self._match(tokens, 'operator')
+            args = []
+
+            while tokens:
+                if self._peek(tokens, 'operator') == ')':
+                    self._match(tokens, 'operator')
+                    break
+                args.append(tokens.pop(0))
+            else:
+                raise Exception('syntax error')
+
+            return functools.partial(self.pclass_function_validator, lexeme, args)
+        else:
+            raise Exception('syntax error')
+
+    def pclass_function_validator(self, pclass, args, node):
+        # TODO: DRY this up
+        # in arg parsing, should probably use eval
+        args = list(args)
+        if pclass == 'nth-child':
+            if not node.siblings:
+                return False
+            if self._peek(args, 'word') == 'odd':
+                self._match(args, 'word')
+                return node.sibling_idx % 2 == 1
+            elif self._peek(args, 'word') == 'even':
+                return node.sibling_idx % 2 == 0
+            elif self._peek(args, 'int'):
+                idx = self._match(args, 'int')
+                return node.sibling_idx == idx
+            else:
+                raise Exception('syntax error')
+        elif pclass == 'nth-last-child':
+            if not node.siblings:
+                return False
+            reverse_idx = node.siblings - (node.sibling_idx - 1)
+            if self._peek(args, 'word') == 'odd':
+                self._match(args, 'word')
+                return reverse_idx % 2 == 1
+            elif self._peek(args, 'word') == 'even':
+                return reverse_idx % 2 == 0
+            elif self._peek(args, 'int'):
+                idx = self._match(args, 'int')
+                return reverse_idx == idx
+            else:
+                raise Exception('syntax error')
+        else:
+            raise Exception('syntax error')
+
     def _match(self, tokens, type_):
         if not self._peek(tokens, type_):
             raise Exception('match not successful')
@@ -244,13 +297,3 @@ class Parser(object):
 def select(selector, obj):
     parser = Parser(obj)
     return parser.parse(lex(selector))
-
-
-"""
-To merge:
-    _expr_production
-    pclass_func_production
-    _parse
-    eval
-    _rename_1
-"""
