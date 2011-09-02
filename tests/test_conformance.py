@@ -65,11 +65,15 @@ def normalize(obj):
         obj = sorted(obj)
     return obj
 
-
-for level in ('level_%s' % level for level in [1, 2, 3]):
-    test_path = os.path.join('conformance_tests', level)
-
+def add_tests(test_path, name):
     for i, inputs in enumerate(get_ctests(test_path)):
         new_test = create_test(*inputs)
-        new_test.__name__ = 'test_%s_%s' % (i, level)
+        new_test.__name__ = 'test_%s_%s' % (i, name)
         setattr(TestConformance, new_test.__name__, new_test)
+
+for level in ('level_%s' % level for level in [1, 2, 3]):
+    test_path = os.path.join('conformance_tests', 'upstream', level)
+
+    add_tests(test_path, level)
+
+add_tests(os.path.join('conformance_tests', 'custom'), 'custom')
