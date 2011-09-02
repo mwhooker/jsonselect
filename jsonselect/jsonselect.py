@@ -29,7 +29,8 @@ import functools
 
 S_TYPE = lambda x, token: ('type', token)
 S_IDENTIFIER = lambda x, token: ('identifier', token[1:])
-S_QUOTED_IDENTIFIER = lambda x, token: S_IDENTIFIER(None, token.replace('"', ''))
+S_QUOTED_IDENTIFIER = lambda x, token: S_IDENTIFIER(None,
+                                                    token.replace('"', ''))
 S_PCLASS = lambda x, token: ('pclass', token[1:])
 S_PCLASS_FUNC = lambda x, token: ('pclass_func', token[1:])
 S_OPER = lambda x, token: ('operator', token)
@@ -62,7 +63,9 @@ SCANNER = re.Scanner([
 ])
 
 
-class SelectorSyntaxError(Exception): pass
+class SelectorSyntaxError(Exception):
+    pass
+
 
 def lex(selector):
     tokens, rest = SCANNER.scan(selector)
@@ -76,7 +79,9 @@ def lex(selector):
 Node = collections.namedtuple('Node', ['value', 'parent', 'parent_key',
                                        'sibling_idx', 'siblings'])
 
-def object_iter(obj, parent=None, parent_key=None, sibling_idx=None, siblings=None):
+
+def object_iter(obj, parent=None, parent_key=None, sibling_idx=None,
+                siblings=None):
     """
     Yields each node of object graph in postorder
     """
@@ -87,7 +92,7 @@ def object_iter(obj, parent=None, parent_key=None, sibling_idx=None, siblings=No
     if isinstance(obj, list):
         _siblings = len(obj)
         for i, elem in enumerate(obj):
-            for node in object_iter(elem, obj_node, None, i+1, _siblings):
+            for node in object_iter(elem, obj_node, None, i + 1, _siblings):
                 yield node
     elif isinstance(obj, collections.Mapping):
         for key in obj:
@@ -179,18 +184,15 @@ class Parser(object):
 
         return [node for node in rhs if _search(node)]
 
-
     def siblings(self, lhs, rhs):
-
         parents = [node.parent for node in lhs]
 
         return [node for node in rhs if node.parent in parents]
 
-
     def type_production(self, type_):
         assert type_
 
-        map = {
+        type_map = {
             'string': basestring,
             'number': numbers.Number,
             'object': collections.Mapping,
@@ -198,8 +200,7 @@ class Parser(object):
             'boolean': bool,
             'null': type(None)
         }
-        return lambda node: isinstance(node.value, map[type_])
-
+        return lambda node: isinstance(node.value, type_map[type_])
 
     def key_production(self, key):
         assert key
@@ -209,7 +210,6 @@ class Parser(object):
                 return False
             return node.parent_key == key
         return validate
-
 
     def pclass_production(self, pclass):
 
@@ -225,9 +225,9 @@ class Parser(object):
         else:
             raise Exception("unrecognized pclass %s" % pclass)
 
-
     def parse_pclass_func_args(self, tokens):
         """Make sure that tokens in a well-formed argument list."""
+        expected = ['int', 'binop', 'float', 'var', 'keyword', 'operator']
         args = []
 
         if self._peek(tokens, 'operator') == '(':
@@ -242,7 +242,7 @@ class Parser(object):
                 break
             # TODO: operators should maybe be parsed seperately.
             # Wouldn't expect to see operator tokens here.
-            elif self._peek(tokens, ['int', 'binop', 'float', 'var', 'keyword', 'operator']):
+            elif self._peek(tokens, expected):
                 args.append(tokens.pop(0))
                 continue
             else:
@@ -256,7 +256,6 @@ class Parser(object):
             raise SelectorSyntaxError()
 
         return args
-
 
     def eval_args(self, args, n=None):
         """Evaluate a list of tokens.
@@ -305,12 +304,8 @@ class Parser(object):
         if not self._peek(tokens, type_):
             raise Exception('match not successful')
 
-        t = tokens.pop(0)
-        return t[1]
-
-    def _match_any(self, tokens):
-        t = tokens.pop(0)
-        return t[1]
+        token = tokens.pop(0)
+        return token[1]
 
     def _peek(self, tokens, type_):
         if not tokens:
@@ -322,6 +317,7 @@ class Parser(object):
             return tokens[0][1]
         else:
             return False
+
 
 def select(selector, obj):
     parser = Parser(obj)
