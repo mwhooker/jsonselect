@@ -116,8 +116,8 @@ class Parser(object):
     def parse(self, tokens):
         print self.obj
 
-        if self._peek(tokens, 'operator') == '*':
-            self._match(tokens, 'operator')
+        if self.peek(tokens, 'operator') == '*':
+            self.match(tokens, 'operator')
             results = list(object_iter(self.obj))
         else:
             results = self.selector_production(tokens)
@@ -133,26 +133,26 @@ class Parser(object):
         print tokens
         validators = []
         # productions should add their own nodes to the found list
-        if self._peek(tokens, 'type'):
-            type_ = self._match(tokens, 'type')
+        if self.peek(tokens, 'type'):
+            type_ = self.match(tokens, 'type')
             validators.append(self.type_production(type_))
 
-        if self._peek(tokens, 'identifier'):
-            key = self._match(tokens, 'identifier')
+        if self.peek(tokens, 'identifier'):
+            key = self.match(tokens, 'identifier')
             validators.append(self.key_production(key))
 
-        if self._peek(tokens, 'pclass'):
-            pclass = self._match(tokens, 'pclass')
+        if self.peek(tokens, 'pclass'):
+            pclass = self.match(tokens, 'pclass')
             validators.append(self.pclass_production(pclass))
 
-        if self._peek(tokens, 'pclass_func'):
-            pclass_func = self._match(tokens, 'pclass_func')
+        if self.peek(tokens, 'pclass_func'):
+            pclass_func = self.match(tokens, 'pclass_func')
             validators.append(self.pclass_func_production(pclass_func, tokens))
 
         results = self._eval(validators, self.obj)
 
-        if self._peek(tokens, 'operator'):
-            operator = self._match(tokens, 'operator')
+        if self.peek(tokens, 'operator'):
+            operator = self.match(tokens, 'operator')
             rvals = self.selector_production(tokens)
             if operator == ',':
                 results.extend(rvals)
@@ -230,19 +230,19 @@ class Parser(object):
         expected = ['int', 'binop', 'float', 'var', 'keyword', 'operator']
         args = []
 
-        if self._peek(tokens, 'operator') == '(':
+        if self.peek(tokens, 'operator') == '(':
             args.append(tokens.pop(0))
         else:
             raise SelectorSyntaxError()
 
         while tokens:
-            if self._peek(tokens, 'operator') == '(':
+            if self.peek(tokens, 'operator') == '(':
                 args.extend(self.parse_pclass_func_args(tokens))
-            elif self._peek(tokens, 'operator') == ')':
+            elif self.peek(tokens, 'operator') == ')':
                 break
             # TODO: operators should maybe be parsed seperately.
             # Wouldn't expect to see operator tokens here.
-            elif self._peek(tokens, expected):
+            elif self.peek(tokens, expected):
                 args.append(tokens.pop(0))
                 continue
             else:
@@ -250,14 +250,15 @@ class Parser(object):
         else:
             raise SelectorSyntaxError()
 
-        if self._peek(tokens, 'operator') == ')':
+        if self.peek(tokens, 'operator') == ')':
             args.append(tokens.pop(0))
         else:
             raise SelectorSyntaxError()
 
         return args
 
-    def eval_args(self, args, n=None):
+    @staticmethod
+    def eval_args(args, n=None):
         """Evaluate a list of tokens.
 
         return a validator (callable), which accepts 1 argument
@@ -300,14 +301,16 @@ class Parser(object):
         else:
             raise SelectorSyntaxError()
 
-    def _match(self, tokens, type_):
-        if not self._peek(tokens, type_):
+    @staticmethod
+    def match(tokens, type_):
+        if not Parser.peek(tokens, type_):
             raise Exception('match not successful')
 
         token = tokens.pop(0)
         return token[1]
 
-    def _peek(self, tokens, type_):
+    @staticmethod
+    def peek(tokens, type_):
         if not tokens:
             return False
 
