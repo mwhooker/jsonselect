@@ -63,6 +63,7 @@ S_FLOAT = lambda x, token: ('float', float(token))
 S_WORD = lambda x, token: ('word', token)
 S_BINOP = lambda x, token: ('binop', token)
 S_VALS = lambda x, token: ('val', token)
+S_KEYWORD = lambda x, token: ('keyword', token)
 S_VAR = lambda x, token: ('var', token)
 
 SCANNER = re.Scanner([
@@ -79,6 +80,7 @@ SCANNER = re.Scanner([
     (r"(&&|\|\||[\$\^<>!\*]=|[=+\-*/%<>])", S_BINOP),
     (r"true|false|null", S_VALS),
     (r"n", S_VAR),
+    (r"odd|even", S_KEYWORD),
     (r"\w+", S_WORD),
 ])
 
@@ -253,8 +255,9 @@ class Parser(object):
                 self.parse_pclass_func_args(tokens)
             elif self._peek(tokens, 'operator') == ')':
                 break
-#TODO: operators should maybe be parsed seperately. Wouldn't expect to see operator tokens here.
-            elif self._peek(tokens, ['int', 'binop', 'float', 'var', 'empty', 'operator']):
+            # TODO: operators should maybe be parsed seperately.
+            # Wouldn't expect to see operator tokens here.
+            elif self._peek(tokens, ['int', 'binop', 'float', 'var', 'keyword', 'empty', 'operator']):
                 self._match_any(tokens)
                 continue
             else:
@@ -269,9 +272,26 @@ class Parser(object):
 
 
     def eval_args(self, args, n=None):
+        """Evaluate a list of tokens.
+
+        return a validator (callable), which accepts 1 argument
+        and return True or False."""
+
         expr_str = ''.join([str(arg[1]) for arg in args])
 
-        return eval(expr_str, None, {'n': n})
+        local_vars = {
+            'odd': lambda idx: idx % 2 == 1,
+            'even': lambda idx: idx % 2 == 0,
+            'n': n
+        }
+
+        ret = eval(expr_str, None, local_vars)
+        if callable(ret):
+            return ret(n)
+        elif len([x for x in args if x[0] == 'var']):
+            return ret >= 0
+        else:
+            return ret == n
 
     def pclass_func_production(self, lexeme, tokens):
         """
@@ -279,41 +299,18 @@ class Parser(object):
         """
 
         self.parse_pclass_func_args(list(tokens))
-        return functools.partial(self.pclass_function_validator, lexeme, args)
+        return functools.partial(self.pclass_function_validator, lexeme, tokens)
 
     def pclass_function_validator(self, pclass, args, node):
-        # x = self.eval_args(args, n)
-
-        # TODO: DRY this up
-        # in arg parsing, should probably use eval
-        args = list(args)
         if pclass == 'nth-child':
             if not node.siblings:
                 return False
-            if self._peek(args, 'word') == 'odd':
-                self._match(args, 'word')
-                return node.sibling_idx % 2 == 1
-            elif self._peek(args, 'word') == 'even':
-                return node.sibling_idx % 2 == 0
-            elif self._peek(args, 'int'):
-                idx = self._match(args, 'int')
-                return node.sibling_idx == idx
-            else:
-                raise SelectorSyntaxError()
+            return self.eval_args(args, node.sibling_idx)
         elif pclass == 'nth-last-child':
             if not node.siblings:
                 return False
             reverse_idx = node.siblings - (node.sibling_idx - 1)
-            if self._peek(args, 'word') == 'odd':
-                self._match(args, 'word')
-                return reverse_idx % 2 == 1
-            elif self._peek(args, 'word') == 'even':
-                return reverse_idx % 2 == 0
-            elif self._peek(args, 'int'):
-                idx = self._match(args, 'int')
-                return reverse_idx == idx
-            else:
-                raise SelectorSyntaxError()
+            return self.eval_args(args, reverse_idx)
         else:
             raise SelectorSyntaxError()
 
