@@ -166,7 +166,6 @@ class Parser(object):
             pclass_func = self._match(tokens, 'pclass_func')
             validators.append(self.pclass_func_production(pclass_func, tokens))
 
-        print validators
         results = self._eval(validators, self.obj)
 
         if self._peek(tokens, 'operator'):
@@ -245,20 +244,22 @@ class Parser(object):
 
     def parse_pclass_func_args(self, tokens):
         """Make sure that tokens in a well-formed argument list."""
+        args = []
+
         if self._peek(tokens, 'operator') == '(':
-            self._match(tokens, 'operator')
+            args.append(tokens.pop(0))
         else:
             raise SelectorSyntaxError()
 
         while tokens:
             if self._peek(tokens, 'operator') == '(':
-                self.parse_pclass_func_args(tokens)
+                args.extend(self.parse_pclass_func_args(tokens))
             elif self._peek(tokens, 'operator') == ')':
                 break
             # TODO: operators should maybe be parsed seperately.
             # Wouldn't expect to see operator tokens here.
             elif self._peek(tokens, ['int', 'binop', 'float', 'var', 'keyword', 'empty', 'operator']):
-                self._match_any(tokens)
+                args.append(tokens.pop(0))
                 continue
             else:
                 raise SelectorSyntaxError()
@@ -266,9 +267,11 @@ class Parser(object):
             raise SelectorSyntaxError()
 
         if self._peek(tokens, 'operator') == ')':
-            self._match(tokens, 'operator')
+            args.append(tokens.pop(0))
         else:
             raise SelectorSyntaxError()
+
+        return args
 
 
     def eval_args(self, args, n=None):
@@ -298,8 +301,8 @@ class Parser(object):
         Parse args and pass them to pclass_function_validator.
         """
 
-        self.parse_pclass_func_args(list(tokens))
-        return functools.partial(self.pclass_function_validator, lexeme, tokens)
+        args = self.parse_pclass_func_args(tokens)
+        return functools.partial(self.pclass_function_validator, lexeme, args)
 
     def pclass_function_validator(self, pclass, args, node):
         if pclass == 'nth-child':
