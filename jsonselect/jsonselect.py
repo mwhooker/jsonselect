@@ -113,14 +113,15 @@ class Parser(object):
 
         if self._peek(tokens, 'operator') == '*':
             self._match(tokens, 'operator')
-            return [node.value for node in object_iter(self.obj)]
+            results = list(object_iter(self.obj))
         else:
             results = self.selector_production(tokens)
-            results = [node.value for node in results]
-            # single results should be returned as a primitive
-            if len(results) == 1:
-                return results[0]
-            return results
+
+        results = [node.value for node in results]
+        # single results should be returned as a primitive
+        if len(results) == 1:
+            return results[0]
+        return results
 
     def selector_production(self, tokens):
 
