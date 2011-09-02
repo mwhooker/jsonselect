@@ -69,7 +69,7 @@ def lex(selector):
     if not len(tokens):
         if rest:
             raise Exception("leftover input: %s" % rest)
-    return tokens
+    return [tok for tok in tokens if tok[0] != 'empty']
 
 # sibling_idx is 1 indexed
 # parents is a list of nodes from current node to root.
@@ -155,15 +155,17 @@ class Parser(object):
                 results = self.parents(results, rvals)
             elif operator == '~':
                 results = self.siblings(results, rvals)
-        elif self._peek(tokens, 'empty'):
-            self._match(tokens, 'empty')
-            rvals = self.selector_production(tokens)
-            results = self.ancestors(results, rvals)
+                return results
+        else:
+            if len(tokens):
+                rvals = self.selector_production(tokens)
+                results = self.ancestors(results, rvals)
 
         return results
 
     def parents(self, lhs, rhs):
-        pass
+
+        return [node for node in rhs if node.parent in lhs]
 
     def ancestors(self, lhs, rhs):
         """Return nodes from rhs which have ancestors in lhs."""
@@ -179,7 +181,11 @@ class Parser(object):
 
 
     def siblings(self, lhs, rhs):
-        pass
+
+        parents = [node.parent for node in lhs]
+
+        return [node for node in rhs if node.parent in parents]
+
 
     def type_production(self, type_):
         assert type_
@@ -236,7 +242,7 @@ class Parser(object):
                 break
             # TODO: operators should maybe be parsed seperately.
             # Wouldn't expect to see operator tokens here.
-            elif self._peek(tokens, ['int', 'binop', 'float', 'var', 'keyword', 'empty', 'operator']):
+            elif self._peek(tokens, ['int', 'binop', 'float', 'var', 'keyword', 'operator']):
                 args.append(tokens.pop(0))
                 continue
             else:
