@@ -11,3 +11,4 @@ license
 Make SyntaxError exception class (don't clobber global namespace)
 Make parse/match/parse* (anything which doesn't use self.obj) static
 more unit tests
+implement T.empty
