@@ -20,29 +20,6 @@ T:val(V)            A node of type T with a value that is equal to V            
 T:contains(S)       A node of type T with a string value contains the substring S                               3
 
 
-IDEA:
-
-    each production returns a list of matching nodes. Do set arithmetic at higher levels?
-    This might work because we'll be working with Nodes and not primitives
-
-    i.e.
-    expr_prod:
-        and(results, type_prod)
-        and(results, id_prod)
-        and(results, pclass_prod)
-        if next == ','
-            or(results, expr_prod)
-        if next == ' '
-            ancestor(results, expr_prod)
-        if next == '~':
-            sibling(results, expr_prod)
-        if next == '>'
-            parent(results, expr_prod)
-        return results
-
-    might be hard to do set arithmetic because node.value could be an unhashable primitive.
-    perhaps going back to adding validators.
-    or a hybrid approach where and/or adds validators
 """
 import re
 import numbers
