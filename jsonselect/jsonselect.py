@@ -318,4 +318,7 @@ class Parser(object):
 
 def select(selector, obj):
     parser = Parser(obj)
-    return parser.parse(lex(selector))
+    try:
+        return parser.parse(lex(selector))
+    except SelectorSyntaxError:
+        return False
