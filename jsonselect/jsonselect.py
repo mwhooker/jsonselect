@@ -18,8 +18,6 @@ T:has(S)            A node of type T which has a child node satisfying the selec
 T:expr(E)           A node of type T with a value that satisfies the expression E                               3
 T:val(V)            A node of type T with a value that is equal to V                                            3
 T:contains(S)       A node of type T with a string value contains the substring S                               3
-
-
 """
 import re
 import numbers
