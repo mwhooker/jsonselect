@@ -37,14 +37,54 @@ def read_output(output_f):
     output = output_f.read().strip()
     try:
         output = json.loads(output)
+        return output
     except ValueError, e:
-        output = output.replace('"','').split()
-        for i, line in enumerate(output):
+        output_f.seek(0)
+        marker_map = {
+            '{': '}',
+            '[': ']'
+        }
+        output = []
+        collected = ''
+        marker = None
+        for line in output_f:
+
+            # int value?
             try:
-                output[i] = int(line)
+                output.append(int(line))
+                continue
             except ValueError:
                 pass
-    return output
+
+            # string
+            if line[0] == '"':
+                output.append(json.loads(line))
+                continue
+
+            # closing object or array
+            if line[0] == marker:
+                collected += line
+                output.append(json.loads(collected))
+                collected = ''
+                marker = None
+                continue
+
+            # opening object or array
+            if line[0] in '[{':
+                marker = marker_map[line[0]]
+                collected += line
+                continue
+
+            # object or array body
+            if marker:
+                collected += line
+                continue
+
+            # anything else
+            output.append(line)
+
+        return output
+
 
 def create_test(selector, input, output):
     def _test(self):
