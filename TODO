@@ -2,10 +2,9 @@ level 3
 
 write test fuzzer
 
-setup.py
-put on pypi
 Make parse/match/parse* (anything which doesn't use self.obj) static
+    or perhaps remove class and make purely functional.
 more unit tests
 implement T.empty
-level 2
-perhaps remove class and make purely functional.
+write better README. format in RST
+    mention what it doesn't implement
