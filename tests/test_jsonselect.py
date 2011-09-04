@@ -18,4 +18,4 @@ class TestJsonselect(TestCase):
         self.assertFalse(jsonselect.select('gibberish', self.obj))
 
     def test_no_results_returns_none(self):
-        self.assertNone(jsonselect.select('.foobar', self.obj))
+        self.assertEquals(jsonselect.select('.foobar', self.obj), None)

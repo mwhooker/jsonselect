@@ -149,6 +149,8 @@ class Parser(object):
         # single results should be returned as a primitive
         if len(results) == 1:
             return results[0]
+        elif not len(results):
+            return None
         return results
 
     def selector_production(self, tokens):
@@ -173,6 +175,9 @@ class Parser(object):
         if self.peek(tokens, 'pclass_func'):
             pclass_func = self.match(tokens, 'pclass_func')
             validators.append(self.pclass_func_production(pclass_func, tokens))
+
+        if not len(validators):
+            raise SelectorSyntaxError()
 
         # apply validators from a selector expression to self.obj
         results = self._eval(validators, self.obj)
