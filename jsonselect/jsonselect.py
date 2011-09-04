@@ -23,6 +23,7 @@ import re
 import numbers
 import collections
 import functools
+import logging
 
 
 S_TYPE = lambda x, token: ('type', token)
@@ -60,6 +61,8 @@ SCANNER = re.Scanner([
     (r"\w+", S_WORD),
 ])
 
+log = logging.getLogger(__name__)
+
 
 class SelectorSyntaxError(Exception):
     pass
@@ -72,20 +75,24 @@ def lex(selector):
             raise Exception("leftover input: %s" % rest)
     return [tok for tok in tokens if tok[0] != 'empty']
 
-# sibling_idx is 1 indexed
-# parents is a list of nodes from current node to root.
-Node = collections.namedtuple('Node', ['value', 'parent', 'parent_key',
-                                       'sibling_idx', 'siblings'])
+# metadata about a node in the target object graph
+Node = collections.namedtuple('Node', [
+    'value',
+    'parent',       # parent Node. None if root.
+    'parent_key',   # if parent is a dict, key which indexes current Node.
+    'idx',          # if parent is an array, index of curr Node. starts at 1.
+    'siblings'      # if parent is an array, list of sibling Nodes.
+])
 
 
-def object_iter(obj, parent=None, parent_key=None, sibling_idx=None,
+def object_iter(obj, parent=None, parent_key=None, idx=None,
                 siblings=None):
     """
     Yields each node of object graph in postorder
     """
 
     obj_node = Node(value=obj, parent=parent, parent_key=parent_key,
-                siblings=siblings, sibling_idx=sibling_idx)
+                siblings=siblings, idx=idx)
 
     if isinstance(obj, list):
         _siblings = len(obj)
@@ -112,7 +119,7 @@ class Parser(object):
         return results
 
     def parse(self, tokens):
-        print self.obj
+        log.debug(self.obj)
 
         if self.peek(tokens, 'operator') == '*':
             self.match(tokens, 'operator')
@@ -128,7 +135,7 @@ class Parser(object):
 
     def selector_production(self, tokens):
 
-        print tokens
+        log.debug(tokens)
         validators = []
         # productions should add their own nodes to the found list
         if self.peek(tokens, 'type'):
@@ -212,10 +219,10 @@ class Parser(object):
     def pclass_production(self, pclass):
 
         if pclass == 'first-child':
-            return lambda node: node.sibling_idx == 1
+            return lambda node: node.idx == 1
         elif pclass == 'last-child':
             return lambda node: \
-                node.siblings and node.sibling_idx == node.siblings
+                node.siblings and node.idx == node.siblings
         elif pclass == 'only-child':
             return lambda node: node.siblings == 1
         elif pclass == 'root':
@@ -290,11 +297,11 @@ class Parser(object):
         if pclass == 'nth-child':
             if not node.siblings:
                 return False
-            return self.eval_args(args, node.sibling_idx)
+            return self.eval_args(args, node.idx)
         elif pclass == 'nth-last-child':
             if not node.siblings:
                 return False
-            reverse_idx = node.siblings - (node.sibling_idx - 1)
+            reverse_idx = node.siblings - (node.idx - 1)
             return self.eval_args(args, reverse_idx)
         else:
             raise SelectorSyntaxError()
