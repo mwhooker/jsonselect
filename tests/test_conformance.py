@@ -86,7 +86,7 @@ def read_output(output_f):
         return output
 
 
-def create_test(selector, input, output):
+def create_ctest(selector, input, output):
     def _test(self):
         selection = select(selector, input)
 
@@ -105,15 +105,15 @@ def normalize(obj):
         obj = sorted(obj)
     return obj
 
-def add_tests(test_path, name):
+def add_ctests(test_path, name):
     for i, inputs in enumerate(get_ctests(test_path)):
-        new_test = create_test(*inputs)
+        new_test = create_ctest(*inputs)
         new_test.__name__ = 'test_%s_%s' % (i, name)
         setattr(TestConformance, new_test.__name__, new_test)
 
 for level in ('level_%s' % level for level in [1, 2, 3]):
     test_path = os.path.join('conformance_tests', 'upstream', level)
 
-    add_tests(test_path, level)
+    add_ctests(test_path, level)
 
-add_tests(os.path.join('conformance_tests', 'custom'), 'custom')
+add_ctests(os.path.join('conformance_tests', 'custom'), 'custom')
