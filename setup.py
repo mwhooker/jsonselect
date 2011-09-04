@@ -17,6 +17,7 @@ setup(
     license='ISC',
     packages=['jsonselect', 'tests'],
     classifiers=[
+        'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
         'Natural Language :: English',
         'License :: OSI Approved :: ISC License (ISCL)',
