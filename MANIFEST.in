@@ -1,4 +1,4 @@
 include LICENSE README
-recursive-include tests *
-recursive-include conformance_tests *
-recursive-exclude tests *.pyc
+recursive-include tests *.py
+graft conformance_tests
+prune conformance_tests/upstream/.git
