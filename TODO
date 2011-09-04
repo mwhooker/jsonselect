@@ -1,14 +1,11 @@
-level 1
-level 2
 level 3
 
 write test fuzzer
 
 setup.py
 put on pypi
-copyright
-license
-Make SyntaxError exception class (don't clobber global namespace)
 Make parse/match/parse* (anything which doesn't use self.obj) static
 more unit tests
 implement T.empty
+level 2
+perhaps remove class and make purely functional.
