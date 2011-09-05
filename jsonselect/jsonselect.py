@@ -88,15 +88,13 @@ Node = collections.namedtuple('Node', [
     'parent',       # parent Node. None if root.
     'parent_key',   # if parent is a dict, key which indexes current Node.
     'idx',          # if parent is an array, index of curr Node. starts at 1.
-    'siblings'      # if parent is an array, list of sibling Nodes.
+    'siblings'      # if parent is an array, number of elements in it
 ])
 
 
 def object_iter(obj, parent=None, parent_key=None, idx=None,
                 siblings=None):
-    """
-    Yields each node of object graph in postorder
-    """
+    """Yields each node of object graph in postorder."""
 
     obj_node = Node(value=obj, parent=parent, parent_key=parent_key,
                 siblings=siblings, idx=idx)
@@ -152,7 +150,7 @@ class Parser(object):
 
         log.debug(tokens)
         validators = []
-        # productions should add their own nodes to the found list
+        # the following productions should return predicate functions.
 
         if self.peek(tokens, 'type'):
             type_ = self.match(tokens, 'type')
@@ -174,7 +172,7 @@ class Parser(object):
             raise SelectorSyntaxError()
 
         # apply validators from a selector expression to self.obj
-        results = self._eval(validators, self.obj)
+        results = self._match_nodes(validators, self.obj)
 
         if self.peek(tokens, 'operator'):
             operator = self.match(tokens, 'operator')
@@ -315,11 +313,7 @@ class Parser(object):
 
     @staticmethod
     def eval_args(args, n=None):
-        """Evaluate a list of tokens.
-
-        return a validator (callable), which accepts 1 argument
-        and return True or False.
-        """
+        """Evaluate a list of tokens."""
 
         expr_str = ''.join([str(arg[1]) for arg in args])
 
@@ -337,7 +331,7 @@ class Parser(object):
         else:
             return ret == n
 
-    def _eval(self, validators, obj):
+    def _match_nodes(self, validators, obj):
         """Apply each validator in validators to each node in obj.
 
         Return each node in obj which matches all validators.
