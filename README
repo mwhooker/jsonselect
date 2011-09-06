@@ -2,3 +2,12 @@ Tests
 
 Run specific level conformance tests with
 nosetests -m '.*_level_1' ./tests/test_conformance.py
+
+
+Note on "nth" expressions:
+    For the expressions nth-child nth-last-child, I can find no logic or
+    documentation stating how the arguments should be evaluated.
+    As such, I'm not supporting anything but numeric arguments until more
+    documentation is written.
+
+Note on 

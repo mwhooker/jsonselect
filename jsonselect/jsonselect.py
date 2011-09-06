@@ -256,6 +256,8 @@ class Parser(object):
         """Parse arguments to a psuedoclass function.
 
         Raises SelectorSyntaxError if bad arguments found.
+
+        TODO: trash this function
         """
         expected = ['int', 'binop', 'float', 'var', 'keyword', 'operator']
         args = []
@@ -291,7 +293,59 @@ class Parser(object):
         """Parse args and pass them to pclass_func_validator."""
 
         args = self.parse_pclass_func_args(tokens)
-        return functools.partial(self.pclass_func_validator, lexeme, args)
+        x = ''.join([str(t[1]) for t in args])
+        nth_pat = r"^\s*\(\s*(?:([+\-]?)([0-9]*)n\s*(?:([+\-])\s*([0-9]))?|(odd|even)|([+\-]?[0-9]+))\s*\)"
+        pat = re.match(nth_pat, x)
+
+        print pat.groups()
+        if pat.group(5):
+            a = 2
+            b = 1 if pat.group(5) == 'odd' else 0
+            #b = pat[5] == 'odd' ? 1 : 0
+        elif pat.group(6):
+            a = 0
+            b = int(pat.group(6))
+        else:
+            sign = pat.group(1) if pat.group(1) else '+'
+            coef = pat.group(2) if pat.group(2) else '1' 
+            print sign + '' + coef
+            a = eval(sign + coef)
+            b = eval(pat.group(3) + pat.group(4)) if pat.group(3) else 0
+            """
+            a = eval((pat.group(1) ? pat.group(1) : '+') + (
+                pat.group(2) ? pat.group(2) : '1'))
+            b = pat.group(3) ? eval(m[3] + m[4]) : 0
+            s.a = parseInt((m[1] ? m[1] : "+") + (m[2] ? m[2] : "1"),10);
+            s.b = m[3] ? parseInt(m[3] + m[4],10) : 0;
+            """
+        reversed = False
+        if lexeme == 'nth-last-child':
+            reversed = True
+
+        return functools.partial(self.do, a, b, reversed)
+        #return functools.partial(self.pclass_func_validator, lexeme, args)
+
+
+    def do(self, a, b, reverse, node):
+        """This crazy function taken from jsonselect.js:444."""
+
+        if not node.siblings:
+            return False
+
+        num = node.idx - 1
+        idx = node.siblings
+
+        if reverse:
+            reverse_idx = node.siblings - (node.idx - 1)
+            num = idx - num
+        else:
+            num += 1
+        if a == 0:
+            m = b == num
+        else:
+            mod = ((num - b) % a)
+            m = (not mod and ((num * a + b) >= 0))
+        return m
 
     def pclass_func_validator(self, pclass, args, node):
         """Predicate function for psuedoclass functions.
