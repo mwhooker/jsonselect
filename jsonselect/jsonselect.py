@@ -116,7 +116,7 @@ class Parser(object):
     """
     Parse jsonselect queries.
 
-    A simple top-down recursive-descendent parser of jsonselect selectors.
+    A simple top-down recursive-descendant parser of jsonselect selectors.
     Initialize with the object you wish to match against.
 
     Clients should only need to call Parser.parse, which accepts
