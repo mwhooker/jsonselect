@@ -1,5 +1,5 @@
 __title__ = 'jsonselect'
-__version__ = '0.1a'
+__version__ = '0.1b'
 __author__ = 'Matthew Hooker'
 __license__ = 'ISC'
 __copyright__ = 'Copyright 2011 Matthew Hooker'
