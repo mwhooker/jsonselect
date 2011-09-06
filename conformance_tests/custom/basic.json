@@ -23,8 +23,8 @@
         "aisle"
     ],
     "drinkPreference": [
-        "beer",
         "whiskey",
+        "beer",
         "wine"
     ],
     "weight": 172

@@ -297,33 +297,22 @@ class Parser(object):
         nth_pat = r"^\s*\(\s*(?:([+\-]?)([0-9]*)n\s*(?:([+\-])\s*([0-9]))?|(odd|even)|([+\-]?[0-9]+))\s*\)"
         pat = re.match(nth_pat, x)
 
-        print pat.groups()
         if pat.group(5):
             a = 2
             b = 1 if pat.group(5) == 'odd' else 0
-            #b = pat[5] == 'odd' ? 1 : 0
         elif pat.group(6):
             a = 0
             b = int(pat.group(6))
         else:
             sign = pat.group(1) if pat.group(1) else '+'
             coef = pat.group(2) if pat.group(2) else '1' 
-            print sign + '' + coef
             a = eval(sign + coef)
             b = eval(pat.group(3) + pat.group(4)) if pat.group(3) else 0
-            """
-            a = eval((pat.group(1) ? pat.group(1) : '+') + (
-                pat.group(2) ? pat.group(2) : '1'))
-            b = pat.group(3) ? eval(m[3] + m[4]) : 0
-            s.a = parseInt((m[1] ? m[1] : "+") + (m[2] ? m[2] : "1"),10);
-            s.b = m[3] ? parseInt(m[3] + m[4],10) : 0;
-            """
-        reversed = False
+        reverse = False
         if lexeme == 'nth-last-child':
-            reversed = True
+            reverse = True
 
-        return functools.partial(self.do, a, b, reversed)
-        #return functools.partial(self.pclass_func_validator, lexeme, args)
+        return functools.partial(self.do, a, b, reverse)
 
 
     def do(self, a, b, reverse, node):
@@ -332,38 +321,20 @@ class Parser(object):
         if not node.siblings:
             return False
 
-        num = node.idx - 1
-        idx = node.siblings
+        idx = node.idx - 1
+        tot = node.siblings
 
         if reverse:
-            reverse_idx = node.siblings - (node.idx - 1)
-            num = idx - num
+            idx = tot - idx
         else:
-            num += 1
+            idx += 1
+
         if a == 0:
-            m = b == num
+            m = b == idx
         else:
-            mod = ((num - b) % a)
-            m = (not mod and ((num * a + b) >= 0))
+            mod = ((idx - b) % a)
+            m = (not mod and ((idx * a + b) >= 0))
         return m
-
-    def pclass_func_validator(self, pclass, args, node):
-        """Predicate function for psuedoclass functions.
-
-        Raises SelectorSyntaxError if unrecognized psuedoclass function.
-        """
-
-        if pclass == 'nth-child':
-            if not node.siblings:
-                return False
-            return self.eval_args(args, node.idx)
-        elif pclass == 'nth-last-child':
-            if not node.siblings:
-                return False
-            reverse_idx = node.siblings - (node.idx - 1)
-            return self.eval_args(args, reverse_idx)
-        else:
-            raise SelectorSyntaxError()
 
     @staticmethod
     def eval_args(args, n=None):
