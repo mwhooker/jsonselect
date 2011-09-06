@@ -166,7 +166,10 @@ class Parser(object):
 
         if self.peek(tokens, 'pclass_func'):
             pclass_func = self.match(tokens, 'pclass_func')
-            validators.append(self.pclass_func_production(pclass_func, tokens))
+            if pclass_func[:4] == 'nth-':
+                validators.append(self.nth_child_production(pclass_func, tokens))
+            else:
+                raise SelectorSyntaxError('other pclass functions not yet implemented.')
 
         if not len(validators):
             raise SelectorSyntaxError()
@@ -257,7 +260,7 @@ class Parser(object):
 
         Raises SelectorSyntaxError if bad arguments found.
 
-        TODO: trash this function
+        TODO: trash this function (?)
         """
         expected = ['int', 'binop', 'float', 'var', 'keyword', 'operator']
         args = []
@@ -289,10 +292,11 @@ class Parser(object):
 
         return args
 
-    def pclass_func_production(self, lexeme, tokens):
+    def nth_child_production(self, lexeme, tokens):
         """Parse args and pass them to pclass_func_validator."""
 
         args = self.parse_pclass_func_args(tokens)
+        # TODO: compile this into a global
         x = ''.join([str(t[1]) for t in args])
         nth_pat = r"^\s*\(\s*(?:([+\-]?)([0-9]*)n\s*(?:([+\-])\s*([0-9]))?|(odd|even)|([+\-]?[0-9]+))\s*\)"
         pat = re.match(nth_pat, x)
@@ -308,53 +312,33 @@ class Parser(object):
             coef = pat.group(2) if pat.group(2) else '1' 
             a = eval(sign + coef)
             b = eval(pat.group(3) + pat.group(4)) if pat.group(3) else 0
+
         reverse = False
         if lexeme == 'nth-last-child':
             reverse = True
 
-        return functools.partial(self.do, a, b, reverse)
+        def validate(node):
+            """This crazy function taken from jsonselect.js:444."""
 
+            if not node.siblings:
+                return False
 
-    def do(self, a, b, reverse, node):
-        """This crazy function taken from jsonselect.js:444."""
+            idx = node.idx - 1
+            tot = node.siblings
 
-        if not node.siblings:
-            return False
+            if reverse:
+                idx = tot - idx
+            else:
+                idx += 1
 
-        idx = node.idx - 1
-        tot = node.siblings
+            if a == 0:
+                m = b == idx
+            else:
+                mod = (idx - b) % a
+                m = not mod and (idx * a + b) >= 0
+            return m
 
-        if reverse:
-            idx = tot - idx
-        else:
-            idx += 1
-
-        if a == 0:
-            m = b == idx
-        else:
-            mod = ((idx - b) % a)
-            m = (not mod and ((idx * a + b) >= 0))
-        return m
-
-    @staticmethod
-    def eval_args(args, n=None):
-        """Evaluate a list of tokens."""
-
-        expr_str = ''.join([str(arg[1]) for arg in args])
-
-        local_vars = {
-            'odd': lambda idx: idx % 2 == 1,
-            'even': lambda idx: idx % 2 == 0,
-            'n': n
-        }
-
-        ret = eval(expr_str, None, local_vars)
-        if callable(ret):
-            return ret(n)
-        elif len([x for x in args if x[0] == 'var']):
-            return ret >= 0
-        else:
-            return ret == n
+        return validate
 
     def _match_nodes(self, validators, obj):
         """Apply each validator in validators to each node in obj.
