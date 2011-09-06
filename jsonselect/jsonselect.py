@@ -11,11 +11,6 @@ Exceptions:
     Raised by Parser when parsing cannot continue.
 
 TODO:
-fix (n) psuedo-var
-T:nth-child(n)      1   A node of type T which is the nth child
-                        of an array parent
-T:nth-last-child(n) 2   A node of type T which is the nth child
-                        of an array parent counting from the end
 T:empty             2   A node of type T which is an array or object
                         with no child
 T:has(S)            3   A node of type T which has a child node satisfying
