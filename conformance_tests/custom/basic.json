@@ -27,5 +27,7 @@
         "beer",
         "wine"
     ],
+    "allergies": [
+    ],
     "weight": 172
 }
