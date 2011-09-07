@@ -169,7 +169,9 @@ class Parser(object):
             if pclass_func[:4] == 'nth-':
                 validators.append(self.nth_child_production(pclass_func, tokens))
             else:
-                raise SelectorSyntaxError('other pclass functions not yet implemented.')
+                validators.append(
+                    self.pclass_func_production(pclass_func, tokens)
+                )
 
         if not len(validators):
             raise SelectorSyntaxError()
@@ -255,6 +257,13 @@ class Parser(object):
             return lambda node: isinstance(node.value, list) and not len(node.value)
         else:
             raise Exception("unrecognized pclass %s" % pclass)
+
+    def pclass_func_production(self, pclass, tokens):
+        if pclass == 'has':
+            # T:has(S)
+            # A node of type T which has a child node satisfying the selector S
+            rvals = self.selector_production(tokens)
+
 
     def parse_pclass_func_args(self, tokens):
         """Parse arguments to a psuedoclass function.
