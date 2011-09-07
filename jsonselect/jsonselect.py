@@ -186,7 +186,6 @@ class Parser(object):
                 results = self.parents(results, rvals)
             elif operator == '~':
                 results = self.siblings(results, rvals)
-                return results
         else:
             if len(tokens):
                 rvals = self.selector_production(tokens)
