@@ -18,7 +18,7 @@ T:has(S)            3   A node of type T which has a child node satisfying
 T:expr(E)           3   A node of type T with a value that satisfies
                         the expression E
 T:val(V)            3   A node of type T with a value that is equal to V
-T:contains(S)       3   A node of type T with a string value contains
+T:contains(S)       3   A node of type T with a string value which contains
                         the substring S
 """
 import re
@@ -27,6 +27,7 @@ import collections
 import functools
 import logging
 
+from pprint import pprint
 
 S_TYPE = lambda x, token: ('type', token)
 S_IDENTIFIER = lambda x, token: ('identifier', token[1:])
@@ -34,6 +35,7 @@ S_QUOTED_IDENTIFIER = lambda x, token: S_IDENTIFIER(None,
                                                     token.replace('"', ''))
 S_PCLASS = lambda x, token: ('pclass', token[1:])
 S_PCLASS_FUNC = lambda x, token: ('pclass_func', token[1:])
+S_NTH_FUNC = lambda x, token: ('nth_func', token[1:])
 S_OPER = lambda x, token: ('operator', token)
 S_EMPTY = lambda x, token:  ('empty', ' ')
 S_UNK = lambda x, token: ('unknown', token)
@@ -55,7 +57,8 @@ SCANNER = re.Scanner([
     (u"\.([_a-zA-Z]|[^\0-\0177]|\\[^\s0-9a-fA-F])(?:[_a-zA-Z0-9\-]" \
      u"|[^\u0000-\u0177]|(?:\\[^\s0-9a-fA-F]))*", S_IDENTIFIER),
     (r":(root|empty|first-child|last-child|only-child)", S_PCLASS),
-    (r":(nth-child|nth-last-child|has|expr|val|contains)", S_PCLASS_FUNC),
+    (r":(has|expr|val|contains)", S_PCLASS_FUNC),
+    (r":(nth-child|nth-last-child)", S_NTH_FUNC),
     (r"(&&|\|\||[\$\^<>!\*]=|[=+\-*/%<>])", S_BINOP),
     (r"true|false|null", S_VALS),
     (r"n", S_VAR),
@@ -159,17 +162,16 @@ class Parser(object):
             pclass = self.match(tokens, 'pclass')
             validators.append(self.pclass_production(pclass))
 
+        if self.peek(tokens, 'nth_func'):
+            nth_func = self.match(tokens, 'nth_func')
+            validators.append(self.nth_child_production(nth_func, tokens))
+        #self.pclass_func_production(pclass_func, tokens, validators)
+
         if self.peek(tokens, 'pclass_func'):
             pclass_func = self.match(tokens, 'pclass_func')
-            if pclass_func[:4] == 'nth-':
-                validators.append(self.nth_child_production(pclass_func, tokens))
-            else:
-                validators.append(
-                    self.pclass_func_production(pclass_func, tokens)
-                )
-
-        if not len(validators):
-            raise SelectorSyntaxError()
+            tokens = self.normalize(pclass_func, tokens)
+        elif not len(validators):
+            raise SelectorSyntaxError('no selector recognized.')
 
         # apply validators from a selector expression to self.obj
         results = self._match_nodes(validators, self.obj)
@@ -253,11 +255,21 @@ class Parser(object):
         else:
             raise Exception("unrecognized pclass %s" % pclass)
 
-    def pclass_func_production(self, pclass, tokens):
+
+    def normalize(self, pclass, tokens):
         if pclass == 'has':
             # T:has(S)
             # A node of type T which has a child node satisfying the selector S
-            rvals = self.selector_production(tokens)
+            new_tokens = []
+            for token in tokens:
+                if token[1] == '>':
+                    new_tokens.append((token[0], ' '))
+                elif token[1] in '()':
+                    continue
+                else:
+                    new_tokens.append(token)
+            print new_tokens
+            return new_tokens
 
 
     def parse_pclass_func_args(self, tokens):
@@ -267,7 +279,8 @@ class Parser(object):
 
         TODO: trash this function (?)
         """
-        expected = ['int', 'binop', 'float', 'var', 'keyword', 'operator']
+        expected = ['int', 'binop', 'float', 'var', 'keyword', 'operator',
+                    'pclass', 'identifier']
         args = []
 
         if self.peek(tokens, 'operator') == '(':
@@ -286,7 +299,7 @@ class Parser(object):
                 args.append(tokens.pop(0))
                 continue
             else:
-                raise SelectorSyntaxError()
+                raise SelectorSyntaxError('Unrecognized token %s.' % tokens[0][0])
         else:
             raise SelectorSyntaxError()
 
@@ -388,5 +401,6 @@ def select(selector, obj):
     parser = Parser(obj)
     try:
         return parser.parse(lex(selector))
-    except SelectorSyntaxError:
+    except SelectorSyntaxError, e:
+        log.exception(e)
         return False
