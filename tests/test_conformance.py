@@ -3,9 +3,12 @@ import os
 import os.path
 import json
 import collections
-from jsonselect import select
+from jsonselect import jsonselect
 from unittest import TestCase
+import logging
 
+
+log = logging.getLogger(__name__)
 
 class TestConformance(TestCase):
     pass
@@ -88,10 +91,12 @@ def read_output(output_f):
 
 def create_ctest(selector, input, output):
     def _test(self):
-        selection = select(selector, input)
+        parser = jsonselect.Parser(input)
+        selection = parser.parse(jsonselect.lex(selector))
 
         msg = "%s" % selector
         msg += "\n%s\n!=\n%s" % (selection, output)
+        log.debug('creating %s("%s")' % (_test.__name__, selector))
 
         self.assertEqual(
             normalize(selection),
