@@ -169,8 +169,11 @@ class Parser(object):
 
         if self.peek(tokens, 'pclass_func'):
             pclass_func = self.match(tokens, 'pclass_func')
-            tokens = self.normalize(pclass_func, tokens)
-        elif not len(validators):
+            validators.append(
+                self.pclass_func_production(pclass_func, tokens, validators)
+            )
+
+        if not len(validators):
             raise SelectorSyntaxError('no selector recognized.')
 
         # apply validators from a selector expression to self.obj
@@ -256,21 +259,21 @@ class Parser(object):
             raise Exception("unrecognized pclass %s" % pclass)
 
 
-    def normalize(self, pclass, tokens):
+    def pclass_func_production(self, pclass, tokens, validators):
+        tnodes = self._match_nodes(validators, self.obj)
+        args = self.parse_pclass_func_args(tokens)[1:-1]
         if pclass == 'has':
             # T:has(S)
             # A node of type T which has a child node satisfying the selector S
-            new_tokens = []
-            for token in tokens:
+            for i, token in enumerate(args):
                 if token[1] == '>':
-                    new_tokens.append((token[0], ' '))
-                elif token[1] in '()':
-                    continue
-                else:
-                    new_tokens.append(token)
-            print new_tokens
-            return new_tokens
-
+                    args[i] = (token[0], ' ')
+            rvals = self.selector_production(args)
+            pprint(rvals)
+            ancestors = self.ancestors(tnodes, rvals)
+            pprint(ancestors)
+            print 'ancestors: ', ancestors
+            return lambda node: node in ancestors
 
     def parse_pclass_func_args(self, tokens):
         """Parse arguments to a psuedoclass function.
