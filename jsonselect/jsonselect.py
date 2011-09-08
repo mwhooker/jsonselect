@@ -263,7 +263,7 @@ class Parser(object):
         elif pclass == 'empty':
             return lambda node: isinstance(node.value, list) and not len(node.value)
         else:
-            raise Exception("unrecognized pclass %s" % pclass)
+            raise SelectorSyntaxError("unrecognized pclass %s" % pclass)
 
 
     def pclass_func_production(self, pclass, tokens):
@@ -277,7 +277,7 @@ class Parser(object):
             rvals = self.selector_production(args)
             ancestors = [node.parent for node in rvals]
             return lambda node: node in ancestors
-        raise Exception
+        raise SelectorSyntaxError("unsupported pclass function %s" % pclass)
 
     def parse_pclass_func_args(self, tokens):
         """Parse arguments to a psuedoclass function.
@@ -302,11 +302,8 @@ class Parser(object):
                 break
             # TODO: operators should maybe be parsed seperately.
             # Wouldn't expect to see operator tokens here.
-            elif self.peek(tokens, expected):
-                args.append(tokens.pop(0))
-                continue
             else:
-                raise SelectorSyntaxError('Unrecognized token %s.' % tokens[0][0])
+                args.append(tokens.pop(0))
         else:
             raise SelectorSyntaxError()
 
