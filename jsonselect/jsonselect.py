@@ -188,10 +188,13 @@ class Parser(object):
                 results = self.parents(results, rvals)
             elif operator == '~':
                 results = self.siblings(results, rvals)
-        else:
-            if len(tokens):
-                rvals = self.selector_production(tokens)
+            elif operator == ' ':
                 results = self.ancestors(results, rvals)
+            else:
+                raise SelectorSyntaxError("unrecognized operator '%s'" \
+                                          % operator)
+        else:
+            raise SelectorSyntaxError(tokens[0])
 
         return results
 
