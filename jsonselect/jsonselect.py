@@ -146,6 +146,7 @@ class Parser(object):
     def selector_production(self, tokens):
         """Production for a full selector."""
 
+        print tokens
         log.debug(tokens)
         validators = []
         # the following productions should return predicate functions.
@@ -169,16 +170,16 @@ class Parser(object):
 
         if self.peek(tokens, 'pclass_func'):
             pclass_func = self.match(tokens, 'pclass_func')
-            validators.append(
-                self.pclass_func_production(pclass_func, tokens, validators)
-            )
+            validators.append(self.pclass_func_production(pclass_func, tokens))
 
         if not len(validators):
             raise SelectorSyntaxError('no selector recognized.')
 
         # apply validators from a selector expression to self.obj
+        print 'validators: ', validators
         results = self._match_nodes(validators, self.obj)
 
+        print tokens
         if self.peek(tokens, 'operator'):
             operator = self.match(tokens, 'operator')
             rvals = self.selector_production(tokens)
@@ -194,7 +195,10 @@ class Parser(object):
                 raise SelectorSyntaxError("unrecognized operator '%s'" \
                                           % operator)
         else:
-            raise SelectorSyntaxError(tokens[0])
+            if len(tokens):
+                print tokens
+                rvals = self.selector_production(tokens)
+                results = self.ancestors(results, rvals)
 
         return results
 
@@ -262,8 +266,7 @@ class Parser(object):
             raise Exception("unrecognized pclass %s" % pclass)
 
 
-    def pclass_func_production(self, pclass, tokens, validators):
-        tnodes = self._match_nodes(validators, self.obj)
+    def pclass_func_production(self, pclass, tokens):
         args = self.parse_pclass_func_args(tokens)[1:-1]
         if pclass == 'has':
             # T:has(S)
@@ -272,11 +275,9 @@ class Parser(object):
                 if token[1] == '>':
                     args[i] = (token[0], ' ')
             rvals = self.selector_production(args)
-            pprint(rvals)
-            ancestors = self.ancestors(tnodes, rvals)
-            pprint(ancestors)
-            print 'ancestors: ', ancestors
+            ancestors = [node.parent for node in rvals]
             return lambda node: node in ancestors
+        raise Exception
 
     def parse_pclass_func_args(self, tokens):
         """Parse arguments to a psuedoclass function.
@@ -285,8 +286,8 @@ class Parser(object):
 
         TODO: trash this function (?)
         """
-        expected = ['int', 'binop', 'float', 'var', 'keyword', 'operator',
-                    'pclass', 'identifier']
+        expected = ['int', 'binop', 'float', 'var', 'val', 'keyword',
+                    'operator', 'pclass', 'identifier']
         args = []
 
         if self.peek(tokens, 'operator') == '(':
