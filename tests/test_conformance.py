@@ -42,51 +42,54 @@ def read_output(output_f):
         output = json.loads(output)
         return output
     except ValueError, e:
-        output_f.seek(0)
         marker_map = {
             '{': '}',
             '[': ']'
         }
-        output = []
-        collected = ''
+        collected = []
+        collecting = ''
         marker = None
-        for line in output_f:
+
+        for line in output.split('\n'):
+
+            if not len(line):
+                continue
 
             # int value?
             try:
-                output.append(int(line))
+                collected.append(int(line))
                 continue
             except ValueError:
                 pass
 
             # string
             if line[0] == '"':
-                output.append(json.loads(line))
+                collected.append(json.loads(line))
                 continue
 
             # closing object or array
             if line[0] == marker:
-                collected += line
-                output.append(json.loads(collected))
-                collected = ''
+                collecting += line
+                collected.append(json.loads(collecting))
+                collecting = ''
                 marker = None
                 continue
 
             # opening object or array
             if line[0] in '[{':
                 marker = marker_map[line[0]]
-                collected += line
+                collecting += line
                 continue
 
             # object or array body
             if marker:
-                collected += line
+                collecting += line
                 continue
 
             # anything else
-            output.append(line)
+            collected.append(line)
 
-        return output
+        return collected
 
 
 def create_ctest(selector, input, output):
