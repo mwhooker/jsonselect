@@ -11,10 +11,6 @@ Exceptions:
     Raised by Parser when parsing cannot continue.
 
 TODO:
-T:empty             2   A node of type T which is an array or object
-                        with no child
-T:has(S)            3   A node of type T which has a child node satisfying
-                        the selector S
 T:expr(E)           3   A node of type T with a value that satisfies
                         the expression E
 T:val(V)            3   A node of type T with a value that is equal to V
