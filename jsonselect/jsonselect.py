@@ -14,8 +14,6 @@ TODO:
 T:expr(E)           3   A node of type T with a value that satisfies
                         the expression E
 T:val(V)            3   A node of type T with a value that is equal to V
-T:contains(S)       3   A node of type T with a string value which contains
-                        the substring S
 """
 import re
 import numbers
@@ -37,7 +35,7 @@ S_EMPTY = lambda x, token:  ('empty', ' ')
 S_UNK = lambda x, token: ('unknown', token)
 S_INT = lambda x, token: ('int', int(token))
 S_FLOAT = lambda x, token: ('float', float(token))
-S_WORD = lambda x, token: ('word', token)
+S_WORD = lambda x, token: ('word', token[1:-1])
 S_BINOP = lambda x, token: ('binop', token)
 S_VALS = lambda x, token: ('val', token)
 S_KEYWORD = lambda x, token: ('keyword', token)
@@ -49,9 +47,11 @@ SCANNER = re.Scanner([
     (r"(-?\d+(\.\d*)([eE][+\-]?\d+)?)", S_FLOAT),
     (r"\d+", S_INT),
     (r"string|boolean|null|array|object|number", S_TYPE),
+    (ur"\"([_a-zA-Z]|[^\0-\0177]|\\[^\s0-9a-fA-F])([_a-zA-Z0-9\-]" \
+     ur"|[^\u0000-\u0177]|(\\[^\s0-9a-fA-F]))*\"", S_WORD),
     (r'\.?\"([^"\\]|\\[^"])*\"', S_QUOTED_IDENTIFIER),
-    (u"\.([_a-zA-Z]|[^\0-\0177]|\\[^\s0-9a-fA-F])(?:[_a-zA-Z0-9\-]" \
-     u"|[^\u0000-\u0177]|(?:\\[^\s0-9a-fA-F]))*", S_IDENTIFIER),
+    (ur"\.([_a-zA-Z]|[^\0-\0177]|\\[^\s0-9a-fA-F])([_a-zA-Z0-9\-]" \
+     ur"|[^\u0000-\u0177]|(\\[^\s0-9a-fA-F]))*", S_IDENTIFIER),
     (r":(root|empty|first-child|last-child|only-child)", S_PCLASS),
     (r":(has|expr|val|contains)", S_PCLASS_FUNC),
     (r":(nth-child|nth-last-child)", S_NTH_FUNC),
@@ -59,7 +59,6 @@ SCANNER = re.Scanner([
     (r"true|false|null", S_VALS),
     (r"n", S_VAR),
     (r"odd|even", S_KEYWORD),
-    (r"\w+", S_WORD),
 ])
 
 log = logging.getLogger(__name__)
