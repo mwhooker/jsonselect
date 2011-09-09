@@ -273,6 +273,11 @@ class Parser(object):
             rvals = self.selector_production(args)
             ancestors = [node.parent for node in rvals]
             return lambda node: node in ancestors
+
+        if pclass == 'contains':
+            return lambda node: isinstance(node.value, basestring) and \
+                    node.value.find(args[0][1]) >= 0
+
         raise SelectorSyntaxError("unsupported pclass function %s" % pclass)
 
     def parse_pclass_func_args(self, tokens):
