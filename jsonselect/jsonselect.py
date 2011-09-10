@@ -281,6 +281,9 @@ class Parser(object):
             return lambda node: isinstance(node.value, basestring) and \
                     node.value == args[0][1]
 
+        if pclass == 'has':
+            return lambda Node: False
+
         raise SelectorSyntaxError("unsupported pclass function %s" % pclass)
 
     def parse_pclass_func_args(self, tokens):
@@ -304,12 +307,10 @@ class Parser(object):
                 args.extend(self.parse_pclass_func_args(tokens))
             elif self.peek(tokens, 'operator') == ')':
                 break
-            # TODO: operators should maybe be parsed seperately.
-            # Wouldn't expect to see operator tokens here.
             else:
                 args.append(tokens.pop(0))
         else:
-            raise SelectorSyntaxError()
+            raise SelectorSyntaxError('Ran out of tokens looking for ")"')
 
         if self.peek(tokens, 'operator') == ')':
             args.append(tokens.pop(0))
@@ -406,6 +407,7 @@ def select(selector, obj):
     Returns False on syntax error. None if no results found.
     """
 
+    log.info(selector)
     parser = Parser(obj)
     try:
         return parser.parse(lex(selector))
