@@ -277,6 +277,10 @@ class Parser(object):
             return lambda node: isinstance(node.value, basestring) and \
                     node.value.find(args[0][1]) >= 0
 
+        if pclass == 'val':
+            return lambda node: isinstance(node.value, basestring) and \
+                    node.value == args[0][1]
+
         raise SelectorSyntaxError("unsupported pclass function %s" % pclass)
 
     def parse_pclass_func_args(self, tokens):
