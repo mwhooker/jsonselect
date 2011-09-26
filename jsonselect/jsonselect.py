@@ -140,6 +140,8 @@ class Parser(object):
         tokens, rest = SCANNER.scan(selector)
         if not len(tokens):
             raise Exception("no input parsed.")
+        if len(rest):
+            raise Exception("found leftover tokens.")
         return [tok for tok in tokens if tok[0] != 'empty']
 
     def parse(self, selector):
@@ -283,9 +285,15 @@ class Parser(object):
         else:
             raise SelectorSyntaxError("unrecognized pclass %s" % pclass)
 
+    def expr_production(self, args):
+        raise Exception(self.expr_pat.match(args).groups())
 
     def pclass_func_production(self, pclass, tokens):
         args = self.match(tokens, 'expr')[1:-1]
+
+        if pclass == 'expr':
+            return self.expr_production(args)
+
         args = self.lex(args)
 
         if pclass == 'has':
