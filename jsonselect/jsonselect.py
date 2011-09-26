@@ -38,8 +38,10 @@ S_BINOP = lambda x, token: ('binop', token)
 S_VALS = lambda x, token: ('val', token)
 S_KEYWORD = lambda x, token: ('keyword', token)
 S_VAR = lambda x, token: ('var', token)
+S_EXPR = lambda x, token: ('expr', token)
 
 SCANNER = re.Scanner([
+    (r"\([^\)]+\)", S_EXPR),
     (r"[~*,>]", S_OPER),
     (r"\s", S_EMPTY),
     (r"(-?\d+(\.\d*)([eE][+\-]?\d+)?)", S_FLOAT),
@@ -112,6 +114,24 @@ class Parser(object):
         r"|(odd|even)|([+\-]?[0-9]+))\s*\)"
     )
 
+    expr_pat = re.compile(
+            # skip and don't capture leading whitespace
+            "^\s*(?:" +
+            # (1) simple vals
+            "(true|false|null)|" +
+            # (2) numbers
+            "(-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)|" +
+            # (3) strings
+            "(\"(?:[^\]|\[^\"])*\")|" +
+            # (4) the 'x' value placeholder
+            "(x)|" +
+            # (5) binops
+            "(&&|\|\||[\$\^<>!\*]=|[=+\-*/%<>])|" +
+            # (6) parens
+            "([\(\)])" +
+            ")"
+    );
+
     def __init__(self, obj):
         """Create a parser for a particular object."""
         self.obj = obj
@@ -120,8 +140,6 @@ class Parser(object):
         tokens, rest = SCANNER.scan(selector)
         if not len(tokens):
             raise Exception("no input parsed.")
-        self.expr = rest
-        print "rest: ", self.expr
         return [tok for tok in tokens if tok[0] != 'empty']
 
     def parse(self, selector):
@@ -267,7 +285,9 @@ class Parser(object):
 
 
     def pclass_func_production(self, pclass, tokens):
-        args = self.parse_pclass_func_args(tokens)[1:-1]
+        args = self.match(tokens, 'expr')[1:-1]
+        args = self.lex(args)
+
         if pclass == 'has':
             # T:has(S)
             # A node of type T which has a child node satisfying the selector S
@@ -286,48 +306,14 @@ class Parser(object):
             return lambda node: isinstance(node.value, basestring) and \
                     node.value == args[0][1]
 
-        if pclass == 'has':
-            return lambda Node: False
-
         raise SelectorSyntaxError("unsupported pclass function %s" % pclass)
-
-    def parse_pclass_func_args(self, tokens):
-        """Parse arguments to a psuedoclass function.
-
-        Raises SelectorSyntaxError if bad arguments found.
-
-        TODO: trash this function (?)
-        """
-        expected = ['int', 'binop', 'float', 'var', 'val', 'keyword',
-                    'operator', 'pclass', 'identifier']
-        args = []
-
-        if self.peek(tokens, 'operator') == '(':
-            args.append(tokens.pop(0))
-        else:
-            raise SelectorSyntaxError()
-
-        while tokens:
-            if self.peek(tokens, 'operator') == '(':
-                args.extend(self.parse_pclass_func_args(tokens))
-            elif self.peek(tokens, 'operator') == ')':
-                break
-            else:
-                args.append(tokens.pop(0))
-        else:
-            raise SelectorSyntaxError('Ran out of tokens looking for ")"')
-
-        if self.peek(tokens, 'operator') == ')':
-            args.append(tokens.pop(0))
-        else:
-            raise SelectorSyntaxError()
-
-        return args
 
     def nth_child_production(self, lexeme, tokens):
         """Parse args and pass them to pclass_func_validator."""
 
-        pat = self.nth_child_pat.match(self.expr)
+        args = self.match(tokens, 'expr')
+
+        pat = self.nth_child_pat.match(args)
 
         if pat.group(5):
             a = 2
@@ -337,7 +323,7 @@ class Parser(object):
             b = int(pat.group(6))
         else:
             sign = pat.group(1) if pat.group(1) else '+'
-            coef = pat.group(2) if pat.group(2) else '1' 
+            coef = pat.group(2) if pat.group(2) else '1'
             a = eval(sign + coef)
             b = eval(pat.group(3) + pat.group(4)) if pat.group(3) else 0
 
