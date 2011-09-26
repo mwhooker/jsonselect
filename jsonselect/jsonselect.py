@@ -289,7 +289,45 @@ class Parser(object):
             raise SelectorSyntaxError("unrecognized pclass %s" % pclass)
 
     def parse_expr(self, tokens):
-        raise Exception(tokens)
+        def types_eq(type_, *args):
+            return all([isinstance(arg, type_) for arg in args])
+
+        cmpf_map = {
+            '*': lambda lhs, rhs: lhs * rhs,
+            '/': lambda lhs, rhs: lhs / rhs,
+            '%': lambda lhs, rhs: lhs % rhs,
+            '+': lambda lhs, rhs: lhs + rhs,
+            '-': lambda lhs, rhs: lhs - rhs,
+            '<=': lambda lhs, rhs: types_eq(numbers.Number, lhs, rhs) and \
+                lhs <= rhs,
+            '<':  lambda lhs, rhs: types_eq(basestring, lhs, rhs) and \
+                lhs < rhs,
+            '>=': lambda lhs, rhs: types_eq(numbers.Number, lhs, rhs) and \
+                lhs >= rhs,
+            '>':  lambda lhs, rhs: types_eq(basestring, lhs, rhs) and \
+                lhs > rhs,
+            '$=': lambda lhs, rhs: types_eq(basestring, lhs, rhs) and \
+                lhs.rfind(rhs) == len(lhs) - len(rhs),
+            '^=': lambda lhs, rhs: types_eq(basestring, lhs, rhs) and \
+                lhs.find(rhs) == 0,
+            '*=': lambda lhs, rhs: types_eq(basestring, lhs, rhs) and \
+                lhs.find(rhs) != 0,
+            '=': lambda lhs, rhs: lhs == rhs,
+            '!=': lambda lhs, rhs: lhs != rhs,
+            '&&': lambda lhs, rhs: lhs and rhs,
+            '||': lambda lhs, rhs: lhs or rhs
+        }
+
+        if self.peek(tokens, 'paren') == '(':
+            self.match(tokens, 'paren')
+            lhs = parse_expr(tokens)
+
+        if self.peek(tokens, 'paren') == ')':
+            self.match(tokens, 'paren')
+            return lhs
+
+        #cmpf = cmpf_map[tokens.pop(0)]
+        return parse_expr(tokens)
 
     def expr_production(self, args):
         tokens = lex_expr(args)
