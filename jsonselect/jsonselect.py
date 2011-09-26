@@ -13,7 +13,6 @@ Exceptions:
 TODO:
 T:expr(E)           3   A node of type T with a value that satisfies
                         the expression E
-T:val(V)            3   A node of type T with a value that is equal to V
 """
 import re
 import numbers
@@ -21,6 +20,9 @@ import collections
 import functools
 import logging
 import json
+
+
+log = logging.getLogger(__name__)
 
 S_TYPE = lambda x, token: ('type', token)
 S_IDENTIFIER = lambda x, token: ('identifier', token[1:])
@@ -66,7 +68,6 @@ SCANNER = re.Scanner([
 ])
 
 
-
 EXPR_SCANNER = re.Scanner([
     (r"\s", S_EMPTY),
     (r"true|false|null", S_VALS),
@@ -76,9 +77,6 @@ EXPR_SCANNER = re.Scanner([
     (r"(&&|\|\||[\$\^<>!\*]=|[=+\-*/%<>])", S_BINOP),
     (r"\(|\)", S_PAREN)
 ])
-
-log = logging.getLogger(__name__)
-
 
 class SelectorSyntaxError(Exception):
     pass
@@ -275,19 +273,19 @@ class Parser(object):
         return validate
 
     def pclass_production(self, pclass):
+        pclass_map = {
+            'first-child': lambda node: node.idx == 1,
+            'last-child': lambda node: \
+                node.siblings and node.idx == node.siblings,
+            'only-child': lambda node: node.siblings == 1,
+            'root': lambda node: not node.parent,
+            'empty': lambda node: isinstance(node.value, list) and \
+                not len(node.value)
+        }
 
-        if pclass == 'first-child':
-            return lambda node: node.idx == 1
-        elif pclass == 'last-child':
-            return lambda node: \
-                node.siblings and node.idx == node.siblings
-        elif pclass == 'only-child':
-            return lambda node: node.siblings == 1
-        elif pclass == 'root':
-            return lambda node: not node.parent
-        elif pclass == 'empty':
-            return lambda node: isinstance(node.value, list) and not len(node.value)
-        else:
+        try:
+            return pclass_map[pclass]
+        except KeyError:
             raise SelectorSyntaxError("unrecognized pclass %s" % pclass)
 
     def parse_expr(self, tokens):
