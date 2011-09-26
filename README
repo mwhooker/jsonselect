@@ -1,4 +1,7 @@
 Tests
 
+get the upstream conformance tests:
+git submodule update --init
+
 Run specific level conformance tests with
 nosetests -m '.*_level_1' ./tests/test_conformance.py
