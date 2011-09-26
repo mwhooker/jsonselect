@@ -21,7 +21,6 @@ import collections
 import functools
 import logging
 
-from pprint import pprint
 
 S_TYPE = lambda x, token: ('type', token)
 S_IDENTIFIER = lambda x, token: ('identifier', token[1:])
