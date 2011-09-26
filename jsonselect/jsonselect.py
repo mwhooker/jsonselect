@@ -20,6 +20,7 @@ import numbers
 import collections
 import functools
 import logging
+import json
 
 S_TYPE = lambda x, token: ('type', token)
 S_IDENTIFIER = lambda x, token: ('identifier', token[1:])
@@ -37,15 +38,18 @@ S_WORD = lambda x, token: ('word', token[1:-1])
 S_BINOP = lambda x, token: ('binop', token)
 S_VALS = lambda x, token: ('val', token)
 S_KEYWORD = lambda x, token: ('keyword', token)
-S_VAR = lambda x, token: ('var', token)
+S_PVAR = lambda x, token: ('pvar', token)
 S_EXPR = lambda x, token: ('expr', token)
+S_NUMBER = lambda x, token: ('number', token)
+S_STRING = lambda x, token: ('string', token)
+S_PAREN = lambda x, token: ('paren', token)
 
 SCANNER = re.Scanner([
     (r"\([^\)]+\)", S_EXPR),
     (r"[~*,>]", S_OPER),
     (r"\s", S_EMPTY),
     (r"(-?\d+(\.\d*)([eE][+\-]?\d+)?)", S_FLOAT),
-    (r"\d+", S_INT),
+    (r"\d+", S_INT), #TODO remove this
     (r"string|boolean|null|array|object|number", S_TYPE),
     (ur"\"([_a-zA-Z]|[^\0-\0177]|\\[^\s0-9a-fA-F])([_a-zA-Z0-9\-]" \
      ur"|[^\u0000-\u0177]|(\\[^\s0-9a-fA-F]))*\"", S_WORD),
@@ -57,8 +61,20 @@ SCANNER = re.Scanner([
     (r":(nth-child|nth-last-child)", S_NTH_FUNC),
     (r"(&&|\|\||[\$\^<>!\*]=|[=+\-*/%<>])", S_BINOP),
     (r"true|false|null", S_VALS),
-    (r"n", S_VAR),
+    (r"n", S_PVAR),
     (r"odd|even", S_KEYWORD),
+])
+
+
+
+EXPR_SCANNER = re.Scanner([
+    (r"\s", S_EMPTY),
+    (r"true|false|null", S_VALS),
+    (r"-?\d+(\.\d*)?([eE][+\-]?\d+)?", S_NUMBER),
+    (r"\"([^\]|\[^\"])*\"", S_STRING),
+    (r"x", S_PVAR),
+    (r"(&&|\|\||[\$\^<>!\*]=|[=+\-*/%<>])", S_BINOP),
+    (r"\(|\)", S_PAREN)
 ])
 
 log = logging.getLogger(__name__)
@@ -67,6 +83,8 @@ log = logging.getLogger(__name__)
 class SelectorSyntaxError(Exception):
     pass
 
+class LexingError(SelectorSyntaxError):
+    pass
 
 # metadata about a node in the target object graph
 Node = collections.namedtuple('Node', [
@@ -96,6 +114,20 @@ def object_iter(obj, parent=None, parent_key=None, idx=None,
                 yield node
     yield obj_node
 
+def lex(input, scanner=SCANNER):
+    tokens, rest = scanner.scan(input)
+    if not len(tokens):
+        raise LexingError("no input parsed.")
+    if len(rest):
+        raise LexingError("found leftover tokens: %s" % rest)
+    return [tok for tok in tokens if tok[0] != 'empty']
+
+def lex_expr(expression):
+    tokens = lex(expression, scanner=EXPR_SCANNER)
+    for i, token in enumerate(tokens):
+        if token[0] in ('number', 'string', 'val'):
+            tokens[i] = (token[0], json.loads(tokens[i][1]))
+    return tokens
 
 class Parser(object):
 
@@ -114,40 +146,14 @@ class Parser(object):
         r"|(odd|even)|([+\-]?[0-9]+))\s*\)"
     )
 
-    expr_pat = re.compile(
-            # skip and don't capture leading whitespace
-            "^\s*(?:" +
-            # (1) simple vals
-            "(true|false|null)|" +
-            # (2) numbers
-            "(-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)|" +
-            # (3) strings
-            "(\"(?:[^\]|\[^\"])*\")|" +
-            # (4) the 'x' value placeholder
-            "(x)|" +
-            # (5) binops
-            "(&&|\|\||[\$\^<>!\*]=|[=+\-*/%<>])|" +
-            # (6) parens
-            "([\(\)])" +
-            ")"
-    );
-
     def __init__(self, obj):
         """Create a parser for a particular object."""
         self.obj = obj
 
-    def lex(self, selector):
-        tokens, rest = SCANNER.scan(selector)
-        if not len(tokens):
-            raise Exception("no input parsed.")
-        if len(rest):
-            raise Exception("found leftover tokens.")
-        return [tok for tok in tokens if tok[0] != 'empty']
-
     def parse(self, selector):
         """Accept a list of tokens. Returns matched nodes of self.obj."""
         log.debug(self.obj)
-        tokens = self.lex(selector)
+        tokens = lex(selector)
 
         if self.peek(tokens, 'operator') == '*':
             self.match(tokens, 'operator')
@@ -186,7 +192,6 @@ class Parser(object):
         if self.peek(tokens, 'nth_func'):
             nth_func = self.match(tokens, 'nth_func')
             validators.append(self.nth_child_production(nth_func, tokens))
-        #self.pclass_func_production(pclass_func, tokens, validators)
 
         if self.peek(tokens, 'pclass_func'):
             pclass_func = self.match(tokens, 'pclass_func')
@@ -285,16 +290,20 @@ class Parser(object):
         else:
             raise SelectorSyntaxError("unrecognized pclass %s" % pclass)
 
+    def parse_expr(self, tokens):
+        raise Exception(tokens)
+
     def expr_production(self, args):
-        raise Exception(self.expr_pat.match(args).groups())
+        tokens = lex_expr(args)
+        return self.parse_expr(tokens)
 
     def pclass_func_production(self, pclass, tokens):
-        args = self.match(tokens, 'expr')[1:-1]
+        args = self.match(tokens, 'expr')
 
         if pclass == 'expr':
             return self.expr_production(args)
 
-        args = self.lex(args)
+        args = lex(args)
 
         if pclass == 'has':
             # T:has(S)
