@@ -68,13 +68,6 @@ class SelectorSyntaxError(Exception):
     pass
 
 
-def lex(selector):
-    tokens, rest = SCANNER.scan(selector)
-    if not len(tokens):
-        if rest:
-            raise Exception("leftover input: %s" % rest)
-    return [tok for tok in tokens if tok[0] != 'empty']
-
 # metadata about a node in the target object graph
 Node = collections.namedtuple('Node', [
     'value',
@@ -120,9 +113,18 @@ class Parser(object):
         """Create a parser for a particular object."""
         self.obj = obj
 
-    def parse(self, tokens):
+    def lex(self, selector):
+        tokens, rest = SCANNER.scan(selector)
+        if not len(tokens):
+            raise Exception("no input parsed.")
+        if rest:
+            raise Exception("leftover input: %s" % rest)
+        return [tok for tok in tokens if tok[0] != 'empty']
+
+    def parse(self, selector):
         """Accept a list of tokens. Returns matched nodes of self.obj."""
         log.debug(self.obj)
+        tokens = self.lex(selector)
 
         if self.peek(tokens, 'operator') == '*':
             self.match(tokens, 'operator')
@@ -410,7 +412,7 @@ def select(selector, obj):
     log.info(selector)
     parser = Parser(obj)
     try:
-        return parser.parse(lex(selector))
+        return parser.parse(selector)
     except SelectorSyntaxError, e:
         log.exception(e)
         return False

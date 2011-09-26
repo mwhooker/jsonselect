@@ -95,20 +95,19 @@ def read_output(output_f):
 def create_ctest(selector, input, output):
     def _test(self):
         parser = jsonselect.Parser(input)
-        tokens = jsonselect.lex(selector)
 
         try:
             if output[0][:5] == 'Error':
                 self.assertRaises(
                     jsonselect.SelectorSyntaxError,
                     parser.parse,
-                    (tokens,)
+                    (selector,)
                 )
                 return
         except (IndexError, TypeError, KeyError):
             pass
 
-        selection = parser.parse(tokens)
+        selection = parser.parse(selector)
 
         msg = "%s" % selector
         msg += "\n%s\n!=\n%s" % (selection, output)
