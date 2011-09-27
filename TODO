@@ -8,3 +8,11 @@ more unit tests
 implement T.empty
 write better README. format in RST
     mention what it doesn't implement
+
+
+broken level 3 tests:
+    expr lexing is busted. can't do balanced parens.
+    Probably need to use "rest" result from the scanner
+    and do manual parsing.
+    or. shudder. use the shitty regex the javascript uses.
+    i.e. one big OR clause and suss out position arguments.
