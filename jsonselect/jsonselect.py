@@ -324,15 +324,15 @@ class Parser(object):
             '||': lambda lhs, rhs: lhs or rhs
         }
 
+# ((12 % 10) + 40 = x)
         def parse(tokens):
             if not len(tokens):
                 raise Exception
 
             if self.peek(tokens, 'paren') == '(':
                 self.match(tokens, 'paren')
-                return parse(tokens)
-
-            if self.peek(tokens, 'pvar') is not None:
+                lhs = parse(tokens)
+            elif self.peek(tokens, 'pvar') is not None:
                 self.match(tokens, 'pvar')
                 lhs = node.value
             else:
