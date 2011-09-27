@@ -288,7 +288,7 @@ class Parser(object):
         except KeyError:
             raise SelectorSyntaxError("unrecognized pclass %s" % pclass)
 
-    def parse_expr(self, tokens):
+    def parse_expr(self, tokens, node):
         def types_eq(type_, *args):
             return all([isinstance(arg, type_) for arg in args])
 
@@ -318,20 +318,38 @@ class Parser(object):
             '||': lambda lhs, rhs: lhs or rhs
         }
 
-        if self.peek(tokens, 'paren') == '(':
-            self.match(tokens, 'paren')
-            lhs = parse_expr(tokens)
+        def parse(tokens):
+            if not len(tokens):
+                raise Exception
 
-        if self.peek(tokens, 'paren') == ')':
-            self.match(tokens, 'paren')
-            return lhs
+            if self.peek(tokens, 'paren') == '(':
+                self.match(tokens, 'paren')
+                return parse(tokens)
 
-        #cmpf = cmpf_map[tokens.pop(0)]
-        return parse_expr(tokens)
+            if self.peek(tokens, 'pvar') is not None:
+                self.match(tokens, 'pvar')
+                lhs = node.value
+            else:
+                for tok in ('string', 'val', 'number'):
+                    if self.peek(tokens, tok) is not None:
+                        lhs = self.match(tokens, tok)
+                        break
+
+            if self.peek(tokens, 'paren') == ')':
+                self.match(tokens, 'paren')
+                return lhs
+
+            op = self.match(tokens, 'binop')
+            cf = cmpf_map[op]
+            rhs = parse(tokens)
+
+            return cf(lhs, rhs)
+        
+        return parse(tokens)
 
     def expr_production(self, args):
         tokens = lex_expr(args)
-        return self.parse_expr(tokens)
+        return lambda node: self.parse_expr(list(tokens), node)
 
     def pclass_func_production(self, pclass, tokens):
         args = self.match(tokens, 'expr')
@@ -421,7 +439,7 @@ class Parser(object):
 
     @staticmethod
     def match(tokens, type_):
-        if not Parser.peek(tokens, type_):
+        if  Parser.peek(tokens, type_) is None:
             raise Exception('match not successful')
 
         token = tokens.pop(0)
@@ -430,14 +448,14 @@ class Parser(object):
     @staticmethod
     def peek(tokens, type_):
         if not tokens:
-            return False
+            return None
 
         if isinstance(type_, list) and tokens[0][0] in type_:
             return tokens[0][1]
         elif tokens[0][0] == type_:
             return tokens[0][1]
         else:
-            return False
+            return None
 
 
 def select(selector, obj):
