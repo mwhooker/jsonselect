@@ -14,6 +14,7 @@ TODO:
 T:expr(E)           3   A node of type T with a value that satisfies
                         the expression E
 """
+from __future__ import division
 import re
 import numbers
 import collections
@@ -293,11 +294,16 @@ class Parser(object):
             return all([isinstance(arg, type_) for arg in args])
 
         cmpf_map = {
-            '*': lambda lhs, rhs: lhs * rhs,
-            '/': lambda lhs, rhs: lhs / rhs,
-            '%': lambda lhs, rhs: lhs % rhs,
-            '+': lambda lhs, rhs: lhs + rhs,
-            '-': lambda lhs, rhs: lhs - rhs,
+            '*': lambda lhs, rhs: types_eq(numbers.Number, lhs, rhs) and \
+                lhs * rhs,
+            '/': lambda lhs, rhs: types_eq(numbers.Number, lhs, rhs) and \
+                lhs / rhs,
+            '%': lambda lhs, rhs: types_eq(numbers.Number, lhs, rhs) and \
+                lhs % rhs,
+            '+': lambda lhs, rhs: types_eq(numbers.Number, lhs, rhs) and \
+                lhs + rhs,
+            '-': lambda lhs, rhs: types_eq(numbers.Number, lhs, rhs) and \
+                lhs - rhs,
             '<=': lambda lhs, rhs: types_eq(numbers.Number, lhs, rhs) and \
                 lhs <= rhs,
             '<':  lambda lhs, rhs: types_eq(basestring, lhs, rhs) and \
