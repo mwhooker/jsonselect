@@ -363,7 +363,7 @@ class Parser(object):
         if pclass == 'expr':
             return self.expr_production(args)
 
-        args = lex(args)
+        args = lex(args[1:-1])
 
         if pclass == 'has':
             # T:has(S)
