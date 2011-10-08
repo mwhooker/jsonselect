@@ -35,7 +35,6 @@ S_NTH_FUNC = lambda x, token: ('nth_func', token[1:])
 S_OPER = lambda x, token: ('operator', token)
 S_EMPTY = lambda x, token:  ('empty', ' ')
 S_UNK = lambda x, token: ('unknown', token)
-S_INT = lambda x, token: ('int', int(token))
 S_FLOAT = lambda x, token: ('float', float(token))
 S_WORD = lambda x, token: ('word', token[1:-1])
 S_BINOP = lambda x, token: ('binop', token)
@@ -52,7 +51,6 @@ SCANNER = re.Scanner([
     (r"[~*,>]", S_OPER),
     (r"\s", S_EMPTY),
     (r"(-?\d+(\.\d*)([eE][+\-]?\d+)?)", S_FLOAT),
-    (r"\d+", S_INT), #TODO remove this
     (r"string|boolean|null|array|object|number", S_TYPE),
     (ur"\"([_a-zA-Z]|[^\0-\0177]|\\[^\s0-9a-fA-F])([_a-zA-Z0-9\-]" \
      ur"|[^\u0000-\u0177]|(\\[^\s0-9a-fA-F]))*\"", S_WORD),
