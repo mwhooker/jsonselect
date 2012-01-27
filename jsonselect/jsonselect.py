@@ -171,7 +171,6 @@ class Parser(object):
     def selector_production(self, tokens):
         """Production for a full selector."""
 
-        print tokens
         log.debug(tokens)
         validators = []
         # the following productions should return predicate functions.
@@ -200,10 +199,8 @@ class Parser(object):
             raise SelectorSyntaxError('no selector recognized.')
 
         # apply validators from a selector expression to self.obj
-        print 'validators: ', validators
         results = self._match_nodes(validators, self.obj)
 
-        print tokens
         if self.peek(tokens, 'operator'):
             operator = self.match(tokens, 'operator')
             rvals = self.selector_production(tokens)
@@ -220,7 +217,6 @@ class Parser(object):
                                           % operator)
         else:
             if len(tokens):
-                print tokens
                 rvals = self.selector_production(tokens)
                 results = self.ancestors(results, rvals)
 
