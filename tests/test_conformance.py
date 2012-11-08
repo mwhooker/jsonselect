@@ -33,7 +33,9 @@ def get_ctests(test_path):
             with open(output_path) as output_f:
                 yield (selector_f.read().strip(),
                        inputs[input_path],
-                       read_output(output_f))
+                       read_output(output_f),
+                       selector_path[:-len('.selector')]
+                      )
 
 
 def read_output(output_f):
@@ -127,8 +129,8 @@ def normalize(obj):
 
 def add_ctests(test_path, name):
     for i, inputs in enumerate(get_ctests(test_path)):
-        new_test = create_ctest(*inputs)
-        new_test.__name__ = 'test_%s_%s' % (i, name)
+        new_test = create_ctest(*inputs[:3])
+        new_test.__name__ = 'test_%s_%s' % (inputs[-1], name)
         setattr(TestConformance, new_test.__name__, new_test)
 
 for level in ('level_%s' % level for level in [1, 2, 3]):
