@@ -1,4 +1,18 @@
-Tests
+#jsonselect.py
+
+jsonselect.py is a python implementation of https://github.com/fd/json_select
+
+You can find more information here http://jsonselect.org/
+
+
+## Project status
+
+jsonselect.py currently implements levels 1 & 2 of these conformance tests https://github.com/lloyd/JSONSelectTests
+
+level 3 is unimplemented because I was having trouble understanding what the correct behavior should be
+
+
+##Tests
 
 get the upstream conformance tests:
 git submodule update --init
