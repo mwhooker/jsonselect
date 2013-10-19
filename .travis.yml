@@ -1,0 +1,14 @@
+language: python
+python:
+  - "2.6"
+  - "2.7"
+
+notifications:
+  email:
+    - mwhooker@gmail.com
+
+install:
+    - pip install nose
+    - python setup.py develop
+
+script: nosetests -d
