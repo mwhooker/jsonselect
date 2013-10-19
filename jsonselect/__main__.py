@@ -32,6 +32,8 @@ def cli():
 
     obj = json.load(fin)
     selection = select(args.selector, obj)
+    if not selection:
+        sys.exit(2)
     if args.machine_readable:
         print json.dumps(selection)
     elif args.list:
