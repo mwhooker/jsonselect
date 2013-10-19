@@ -2,16 +2,18 @@ import glob
 import os
 import os.path
 import json
-import collections
 from jsonselect import jsonselect
-from unittest import TestCase
+from unittest import TestCase, skip
 import logging
 
 
 log = logging.getLogger(__name__)
 
+
 class TestConformance(TestCase):
+
     pass
+
 
 def get_ctests(test_path):
     inputs = {}
@@ -34,8 +36,7 @@ def get_ctests(test_path):
                 yield (selector_f.read().strip(),
                        inputs[input_path],
                        read_output(output_f),
-                       selector_path[:-len('.selector')]
-                      )
+                       selector_path[:-len('.selector')])
 
 
 def read_output(output_f):
@@ -43,7 +44,7 @@ def read_output(output_f):
     try:
         output = json.loads(output)
         return output
-    except ValueError, e:
+    except ValueError:
         marker_map = {
             '{': '}',
             '[': ']'
@@ -95,7 +96,9 @@ def read_output(output_f):
 
 
 def create_ctest(selector, input, output):
-    def _test(self):
+    def _test(self=None):
+        if not self:
+            print "WFT"
         parser = jsonselect.Parser(input)
 
         try:
@@ -115,27 +118,46 @@ def create_ctest(selector, input, output):
         msg += "\n%s\n!=\n%s" % (selection, output)
         log.debug('creating %s("%s")' % (_test.__name__, selector))
 
-        self.assertEqual(
-            normalize(selection),
-            normalize(output),
-            msg=msg
-        )
+        if all((hasattr(i, '__iter__') for i in (selection, output))):
+            self.assertItemsEqual(
+                selection,
+                output,
+                msg=msg
+            )
+        else:
+            self.assertEqual(
+                selection,
+                output,
+                msg=msg
+            )
     return _test
 
-def normalize(obj):
-    if isinstance(obj, list):
-        obj = sorted(obj)
-    return obj
 
-def add_ctests(test_path, name):
-    for i, inputs in enumerate(get_ctests(test_path)):
+def ctests(test_path, name):
+    for inputs in get_ctests(test_path):
         new_test = create_ctest(*inputs[:3])
         new_test.__name__ = 'test_%s_%s' % (inputs[-1], name)
-        setattr(TestConformance, new_test.__name__, new_test)
+        yield new_test
 
-for level in ('level_%s' % level for level in [1, 2, 3]):
-    test_path = os.path.join('conformance_tests', 'upstream', level)
 
-    add_ctests(test_path, level)
+def add_ctest(test):
+    setattr(TestConformance, test.__name__, test)
 
-add_ctests(os.path.join('conformance_tests', 'custom'), 'custom')
+
+def generate():
+    for level in ('level_%s' % level for level in [1, 2, 3]):
+        test_path = os.path.join('conformance_tests', 'upstream', level)
+
+        skip_3rd = skip("Level 3 not implemented")
+        for test in ctests(test_path, level):
+            if level == "level_3":
+                test = skip_3rd(test)
+            add_ctest(test)
+
+    for test in ctests(os.path.join('conformance_tests', 'custom'),
+                       'custom'):
+        print test
+        add_ctest(test)
+
+
+generate()
