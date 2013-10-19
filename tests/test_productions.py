@@ -28,7 +28,8 @@ class TestPclassFuncArgs(TestCase):
         tokens = jsonselect.lex('(n+2), object')
         self.assertEqual(
             self.parser.parse_pclass_func_args(tokens),
-            [('operator', '('), ('var', 'n'), ('binop', '+'), ('int', 2), ('operator', ')')]
+            [('operator', '('), ('var', 'n'), ('binop', '+'), ('int', 2),
+             ('operator', ')')]
         )
         self.assertEqual(
             tokens,
@@ -43,7 +44,5 @@ class TestPclassFuncArgs(TestCase):
         self.assertRaises(jsonselect.SelectorSyntaxError,
                           self.parser.parse_pclass_func_args, tokens)
 
-
     def test_eval_args(self):
-        tokens = jsonselect.lex('(1 + 2)')
-        self.assertTrue(3, self.parser.eval_args(tokens, n=3))
+        print "\"%s\"" % self.parser.expr_production("(1 + 2)")("foobar")

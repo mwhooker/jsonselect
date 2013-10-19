@@ -319,13 +319,18 @@ class Parser(object):
         }
 
 # ((12 % 10) + 40 = x)
+        ind = []
+
         def parse(tokens):
+            print "%sparse(%s)" % ("\t" * len(ind), tokens)
+            ind.append(tokens)
             if not len(tokens):
                 raise Exception
 
             if self.peek(tokens, 'paren') == '(':
                 self.match(tokens, 'paren')
                 lhs = parse(tokens)
+                return lhs
             elif self.peek(tokens, 'pvar') is not None:
                 self.match(tokens, 'pvar')
                 lhs = node.value
@@ -337,12 +342,16 @@ class Parser(object):
 
             if self.peek(tokens, 'paren') == ')':
                 self.match(tokens, 'paren')
+                print "returning lhs(%s)" % lhs
                 return lhs
 
+            print "binop(%s)" % tokens
             op = self.match(tokens, 'binop')
             cf = cmpf_map[op]
             rhs = parse(tokens)
+            print "%s %s %s" % (lhs, op, rhs)
 
+            ind.pop()
             return cf(lhs, rhs)
         
         return parse(tokens)
@@ -370,12 +379,12 @@ class Parser(object):
             return lambda node: node in ancestors
 
         if pclass == 'contains':
-            return lambda node: isinstance(node.value, basestring) and \
-                    node.value.find(args[0][1]) >= 0
+            return lambda node: (isinstance(node.value, basestring) and
+                                 node.value.find(args[0][1]) >= 0)
 
         if pclass == 'val':
-            return lambda node: isinstance(node.value, basestring) and \
-                    node.value == args[0][1]
+            return lambda node: (isinstance(node.value, basestring) and
+                                 node.value == args[0][1])
 
         raise SelectorSyntaxError("unsupported pclass function %s" % pclass)
 
@@ -439,8 +448,9 @@ class Parser(object):
 
     @staticmethod
     def match(tokens, type_):
-        if  Parser.peek(tokens, type_) is None:
-            raise Exception('match not successful')
+        print "matching %s to %s" % (type_, tokens)
+        if Parser.peek(tokens, type_) is None:
+            raise Exception('match not successful (%s, %s)' % (type_, tokens))
 
         token = tokens.pop(0)
         return token[1]
