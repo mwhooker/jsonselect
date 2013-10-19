@@ -10,7 +10,7 @@ setup(
     name='jsonselect',
     version=jsonselect.__version__,
     description='Python implementation of jsonselect (http://jsonselect.org/)',
-    long_description=open('README').read(),
+    long_description=open('README.md').read(),
     author='Matthew Hooker',
     author_email='mwhooker@gmail.com',
     url='https://github.com/mwhooker/jsonselect',
