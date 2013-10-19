@@ -52,10 +52,10 @@ SCANNER = re.Scanner([
     (r"\s", S_EMPTY),
     (r"(-?\d+(\.\d*)([eE][+\-]?\d+)?)", S_FLOAT),
     (r"string|boolean|null|array|object|number", S_TYPE),
-    (ur"\"([_a-zA-Z]|[^\0-\0177]|\\[^\s0-9a-fA-F])([_a-zA-Z0-9\-]" \
+    (ur"\"([_a-zA-Z]|[^\0-\0177]|\\[^\s0-9a-fA-F])([_a-zA-Z0-9\-]"
      ur"|[^\u0000-\u0177]|(\\[^\s0-9a-fA-F]))*\"", S_WORD),
     (r'\.?\"([^"\\]|\\[^"])*\"', S_QUOTED_IDENTIFIER),
-    (ur"\.([_a-zA-Z]|[^\0-\0177]|\\[^\s0-9a-fA-F])([_a-zA-Z0-9\-]" \
+    (ur"\.([_a-zA-Z]|[^\0-\0177]|\\[^\s0-9a-fA-F])([_a-zA-Z0-9\-]"
      ur"|[^\u0000-\u0177]|(\\[^\s0-9a-fA-F]))*", S_IDENTIFIER),
     (r":(root|empty|first-child|last-child|only-child)", S_PCLASS),
     (r":(has|expr|val|contains)", S_PCLASS_FUNC),
@@ -116,7 +116,8 @@ def lex(input, scanner=SCANNER):
     if not len(tokens):
         raise LexingError("no input parsed.")
     if len(rest):
-        raise LexingError("found leftover tokens: %s" % rest)
+        print tokens
+        raise LexingError("found leftover tokens: (%s, %s)" % (tokens, rest))
     return [tok for tok in tokens if tok[0] != 'empty']
 
 def lex_expr(expression):
@@ -211,7 +212,7 @@ class Parser(object):
             elif operator == ' ':
                 results = self.ancestors(results, rvals)
             else:
-                raise SelectorSyntaxError("unrecognized operator '%s'" \
+                raise SelectorSyntaxError("unrecognized operator '%s'"
                                           % operator)
         else:
             if len(tokens):
@@ -270,12 +271,12 @@ class Parser(object):
     def pclass_production(self, pclass):
         pclass_map = {
             'first-child': lambda node: node.idx == 1,
-            'last-child': lambda node: \
-                node.siblings and node.idx == node.siblings,
+            'last-child': lambda node: (node.siblings and
+                                        node.idx == node.siblings),
             'only-child': lambda node: node.siblings == 1,
             'root': lambda node: not node.parent,
-            'empty': lambda node: isinstance(node.value, list) and \
-                not len(node.value)
+            'empty': lambda node: (isinstance(node.value, list) and
+                                   not len(node.value))
         }
 
         try:
@@ -288,30 +289,30 @@ class Parser(object):
             return all([isinstance(arg, type_) for arg in args])
 
         cmpf_map = {
-            '*': lambda lhs, rhs: types_eq(numbers.Number, lhs, rhs) and \
-                lhs * rhs,
-            '/': lambda lhs, rhs: types_eq(numbers.Number, lhs, rhs) and \
-                lhs / rhs,
-            '%': lambda lhs, rhs: types_eq(numbers.Number, lhs, rhs) and \
-                lhs % rhs,
-            '+': lambda lhs, rhs: types_eq(numbers.Number, lhs, rhs) and \
-                lhs + rhs,
-            '-': lambda lhs, rhs: types_eq(numbers.Number, lhs, rhs) and \
-                lhs - rhs,
-            '<=': lambda lhs, rhs: types_eq(numbers.Number, lhs, rhs) and \
-                lhs <= rhs,
-            '<':  lambda lhs, rhs: types_eq(basestring, lhs, rhs) and \
-                lhs < rhs,
-            '>=': lambda lhs, rhs: types_eq(numbers.Number, lhs, rhs) and \
-                lhs >= rhs,
-            '>':  lambda lhs, rhs: types_eq(basestring, lhs, rhs) and \
-                lhs > rhs,
-            '$=': lambda lhs, rhs: types_eq(basestring, lhs, rhs) and \
-                lhs.rfind(rhs) == len(lhs) - len(rhs),
-            '^=': lambda lhs, rhs: types_eq(basestring, lhs, rhs) and \
-                lhs.find(rhs) == 0,
-            '*=': lambda lhs, rhs: types_eq(basestring, lhs, rhs) and \
-                lhs.find(rhs) != 0,
+            '*': lambda lhs, rhs: (types_eq(numbers.Number, lhs, rhs) and
+                                   lhs * rhs),
+            '/': lambda lhs, rhs: (types_eq(numbers.Number, lhs, rhs) and
+                                   lhs / rhs),
+            '%': lambda lhs, rhs: (types_eq(numbers.Number, lhs, rhs) and
+                                   lhs % rhs),
+            '+': lambda lhs, rhs: (types_eq(numbers.Number, lhs, rhs) and
+                                   lhs + rhs),
+            '-': lambda lhs, rhs: (types_eq(numbers.Number, lhs, rhs) and
+                                   lhs - rhs),
+            '<=': lambda lhs, rhs: (types_eq(numbers.Number, lhs, rhs) and
+                                    lhs <= rhs),
+            '<': lambda lhs, rhs: (types_eq(basestring, lhs, rhs) and
+                                   lhs < rhs),
+            '>=': lambda lhs, rhs: (types_eq(numbers.Number, lhs, rhs) and
+                                    lhs >= rhs),
+            '>': lambda lhs, rhs: (types_eq(basestring, lhs, rhs) and
+                                   lhs > rhs),
+            '$=': lambda lhs, rhs: (types_eq(basestring, lhs, rhs) and
+                                    lhs.rfind(rhs) == len(lhs) - len(rhs)),
+            '^=': lambda lhs, rhs: (types_eq(basestring, lhs, rhs) and
+                                    lhs.find(rhs) == 0),
+            '*=': lambda lhs, rhs: (types_eq(basestring, lhs, rhs) and
+                                    lhs.find(rhs) != 0),
             '=': lambda lhs, rhs: lhs == rhs,
             '!=': lambda lhs, rhs: lhs != rhs,
             '&&': lambda lhs, rhs: lhs and rhs,
@@ -319,11 +320,8 @@ class Parser(object):
         }
 
 # ((12 % 10) + 40 = x)
-        ind = []
 
         def parse(tokens):
-            print "%sparse(%s)" % ("\t" * len(ind), tokens)
-            ind.append(tokens)
             if not len(tokens):
                 raise Exception
 
@@ -342,18 +340,14 @@ class Parser(object):
 
             if self.peek(tokens, 'paren') == ')':
                 self.match(tokens, 'paren')
-                print "returning lhs(%s)" % lhs
                 return lhs
 
-            print "binop(%s)" % tokens
             op = self.match(tokens, 'binop')
             cf = cmpf_map[op]
             rhs = parse(tokens)
-            print "%s %s %s" % (lhs, op, rhs)
 
-            ind.pop()
             return cf(lhs, rhs)
-        
+
         return parse(tokens)
 
     def expr_production(self, args):
@@ -448,7 +442,6 @@ class Parser(object):
 
     @staticmethod
     def match(tokens, type_):
-        print "matching %s to %s" % (type_, tokens)
         if Parser.peek(tokens, type_) is None:
             raise Exception('match not successful (%s, %s)' % (type_, tokens))
 
