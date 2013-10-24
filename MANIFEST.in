@@ -1,4 +1,4 @@
-include LICENSE README
+include LICENSE README.md
 recursive-include tests *.py
 graft conformance_tests
 prune conformance_tests/upstream/.git
