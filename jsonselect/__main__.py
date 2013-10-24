@@ -23,7 +23,7 @@ def cli():
     args = parser_.parse_args()
 
     if args.infile:
-        fin = args.infile
+        fin = open(args.infile)
     elif sys.stdin:
         fin = sys.stdin
     else:
@@ -37,8 +37,11 @@ def cli():
     if args.machine_readable:
         print json.dumps(selection)
     elif args.list:
-        for i in selection:
-            print i
+        if hasattr(selection, '__iter__'):
+            for i in selection:
+                print i
+        else:
+            print selection
     else:
         print json.dumps(selection, indent=4)
 

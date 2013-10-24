@@ -18,7 +18,6 @@ from __future__ import division
 import re
 import numbers
 import collections
-import functools
 import logging
 import json
 
@@ -127,6 +126,7 @@ def lex_expr(expression):
             tokens[i] = (token[0], json.loads(tokens[i][1]))
     return tokens
 
+
 class Parser(object):
 
     """
@@ -170,7 +170,6 @@ class Parser(object):
     def selector_production(self, tokens):
         """Production for a full selector."""
 
-        log.debug(tokens)
         validators = []
         # the following productions should return predicate functions.
 
@@ -468,7 +467,6 @@ def select(selector, obj):
     Returns False on syntax error. None if no results found.
     """
 
-    log.info(selector)
     parser = Parser(obj)
     try:
         return parser.parse(selector)
