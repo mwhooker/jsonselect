@@ -115,7 +115,6 @@ def lex(input, scanner=SCANNER):
     if not len(tokens):
         raise LexingError("no input parsed.")
     if len(rest):
-        print tokens
         raise LexingError("found leftover tokens: (%s, %s)" % (tokens, rest))
     return [tok for tok in tokens if tok[0] != 'empty']
 

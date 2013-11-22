@@ -97,8 +97,6 @@ def read_output(output_f):
 
 def create_ctest(selector, input, output):
     def _test(self=None):
-        if not self:
-            print "WFT"
         parser = jsonselect.Parser(input)
 
         try:
@@ -156,7 +154,6 @@ def generate():
 
     for test in ctests(os.path.join('conformance_tests', 'custom'),
                        'custom'):
-        print test
         add_ctest(test)
 
 
