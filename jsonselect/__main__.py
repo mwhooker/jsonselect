@@ -19,6 +19,8 @@ def parser():
 def cli():
     import sys
     import json
+    import logging
+    logging.basicConfig()
     parser_ = parser()
     args = parser_.parse_args()
 
