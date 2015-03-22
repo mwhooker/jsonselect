@@ -20,7 +20,10 @@ import numbers
 import collections
 import logging
 import json
+import sys
 
+if sys.version_info[0] >= 3:
+    basestring = str
 
 log = logging.getLogger(__name__)
 
@@ -51,11 +54,11 @@ SCANNER = re.Scanner([
     (r"\s", S_EMPTY),
     (r"(-?\d+(\.\d*)([eE][+\-]?\d+)?)", S_FLOAT),
     (r"string|boolean|null|array|object|number", S_TYPE),
-    (ur"\"([_a-zA-Z]|[^\0-\0177]|\\[^\s0-9a-fA-F])([_a-zA-Z0-9\-]"
-     ur"|[^\u0000-\u0177]|(\\[^\s0-9a-fA-F]))*\"", S_WORD),
+    (u"\"([_a-zA-Z]|[^\0-\0177]|\\\\[^\s0-9a-fA-F])([_a-zA-Z0-9\-]"
+     u"|[^\u0000-\u0177]|(\\\\[^\s0-9a-fA-F]))*\"", S_WORD),
     (r'\.?\"([^"\\]|\\[^"])*\"', S_QUOTED_IDENTIFIER),
-    (ur"\.([_a-zA-Z]|[^\0-\0177]|\\[^\s0-9a-fA-F])([_a-zA-Z0-9\-]"
-     ur"|[^\u0000-\u0177]|(\\[^\s0-9a-fA-F]))*", S_IDENTIFIER),
+    (u"\.([_a-zA-Z]|[^\0-\0177]|\\\\[^\s0-9a-fA-F])([_a-zA-Z0-9\-]"
+     u"|[^\u0000-\u0177]|(\\\\[^\s0-9a-fA-F]))*", S_IDENTIFIER),
     (r":(root|empty|first-child|last-child|only-child)", S_PCLASS),
     (r":(has|expr|val|contains)", S_PCLASS_FUNC),
     (r":(nth-child|nth-last-child)", S_NTH_FUNC),
@@ -469,6 +472,6 @@ def select(selector, obj):
     parser = Parser(obj)
     try:
         return parser.parse(selector)
-    except SelectorSyntaxError, e:
+    except SelectorSyntaxError as e:
         log.exception(e)
         return False

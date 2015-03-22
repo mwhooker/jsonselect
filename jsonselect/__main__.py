@@ -37,14 +37,14 @@ def cli():
     if not selection:
         sys.exit(2)
     if args.machine_readable:
-        print json.dumps(selection)
+        print(json.dumps(selection))
     elif args.list:
         if hasattr(selection, '__iter__'):
             for i in selection:
-                print i
+                print(i)
         else:
-            print selection
+            print(selection)
     else:
-        print json.dumps(selection, indent=4)
+        print(json.dumps(selection, indent=4))
 
 cli()
