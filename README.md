@@ -7,6 +7,25 @@ jsonselect.py is a python implementation of https://github.com/fd/json_select
 You can find more information here http://jsonselect.org/
 
 
+## Project status
+
+### NO LONGER MAINTAINED
+
+The jsonselect spec is not well defined, and the umbrella project seems to be abandoned, so the spec is not supported.
+
+There are plenty of other currently maintained libraries that accomplish the same thing
+
+* http://www.jsoniq.org/
+* https://github.com/boto/jmespath
+* https://github.com/jmespath/jmespath.py
+
+However, if you submit a concise and tested patch, I will probably merge it in.
+
+jsonselect.py currently implements levels 1 & 2 of these conformance tests https://github.com/lloyd/JSONSelectTests
+
+level 3 is unimplemented because I was having trouble understanding what the correct behavior should be
+
+
 ## Usage
 
 jsonselect can be called directly from the command line.
@@ -36,14 +55,6 @@ optional arguments:
   --list, -l          new-line separated list of values. works best on lists.
   --machine-readable  Print json with no formatting
 ```
-
-
-## Project status
-
-jsonselect.py currently implements levels 1 & 2 of these conformance tests https://github.com/lloyd/JSONSelectTests
-
-level 3 is unimplemented because I was having trouble understanding what the correct behavior should be
-
 
 ##Tests
 
