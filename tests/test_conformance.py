@@ -5,6 +5,7 @@ import json
 from jsonselect import jsonselect
 from unittest import TestCase, skip
 import logging
+import sys
 
 
 log = logging.getLogger(__name__)
@@ -117,7 +118,11 @@ def create_ctest(selector, input, output):
         log.debug('creating %s("%s")' % (_test.__name__, selector))
 
         if all((hasattr(i, '__iter__') for i in (selection, output))):
-            self.assertItemsEqual(
+            if sys.version_info[0] >= 3:
+                method = self.assertCountEqual
+            else:
+                method = self.assertItemsEqual
+            method(
                 selection,
                 output,
                 msg=msg
