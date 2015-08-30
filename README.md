@@ -11,8 +11,6 @@ You can find more information here http://jsonselect.org/
 
 ### NO LONGER MAINTAINED
 
-The jsonselect spec is not well defined, and the umbrella project seems to be abandoned, so the spec is not supported.
-
 There are plenty of other currently maintained libraries that accomplish the same thing
 
 * http://www.jsoniq.org/
