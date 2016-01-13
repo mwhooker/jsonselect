@@ -1,5 +1,7 @@
 #jsonselect.py
 
+[![No Maintenance Intended](http://unmaintained.tech/badge.svg)](http://unmaintained.tech/)
+
 [<img src="https://travis-ci.org/mwhooker/jsonselect.png" />](https://travis-ci.org/mwhooker/jsonselect)
 
 jsonselect.py is a python implementation of https://github.com/fd/json_select
